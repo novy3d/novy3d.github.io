@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NOVY · Impresión 3D</title>
+<meta name="description" content="Figuras, llaveros y piezas impresas en 3D. Mirá el catálogo, armá tu pedido y envialo por WhatsApp.">
+<meta name="theme-color" content="#2E3440">
+
+<!-- Ícono de la pestaña y del celular -->
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Vista previa al compartir el link (WhatsApp, Instagram, Facebook).
+     Si tu usuario de GitHub NO es "novy3d", cambialo en las 2 líneas que dicen novy3d.github.io -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NOVY">
+<meta property="og:title" content="NOVY · Impresión 3D">
+<meta property="og:description" content="Mirá el catálogo, armá tu pedido y envialo por WhatsApp.">
+<meta property="og:url" content="https://novy3d.github.io/">
+<meta property="og:image" content="https://novy3d.github.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+  html, body { margin: 0; height: 100%; background: #2E3440; overflow: hidden; }
+  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; opacity: 0; transition: opacity .3s; }
+  #app.ok { opacity: 1; }
+  #carga { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+           font: 500 14px system-ui, sans-serif; color: #A7B0C0; transition: opacity .3s; }
+  #carga img { width: 96px; height: 96px; border-radius: 20px; animation: lat 1.4s ease-in-out infinite; }
+  #carga a { color: #ECEFF4; }
+  @keyframes lat { 50% { transform: scale(.92); opacity: .7; } }
+</style>
+</head>
+<body>
+  <div id="carga">
+    <img src="apple-touch-icon.png" alt="NOVY">
+    <span id="msj">Cargando catálogo…</span>
+  </div>
+
+  <!-- ÚNICA línea a cambiar si alguna vez cambia la URL de la web app -->
+  <iframe id="app" title="Catálogo NOVY"
+    src="https://script.google.com/macros/s/AKfycbz9epmS3ZrpIl5IgYoZBsZosj6myCUH1XE93v-MvQgyDxiu5b38NJEcivPbGEltygzU/exec"
+    allow="clipboard-write; web-share"></iframe>
+
+  <noscript><p style="color:#fff;text-align:center;font-family:sans-serif">
+    <a style="color:#fff" href="https://script.google.com/macros/s/AKfycbz9epmS3ZrpIl5IgYoZBsZosj6myCUH1XE93v-MvQgyDxiu5b38NJEcivPbGEltygzU/exec">Abrir catálogo NOVY</a>
+  </p></noscript>
+
+  <script>
+    var app = document.getElementById('app'), carga = document.getElementById('carga');
+    app.addEventListener('load', function () {
+      app.classList.add('ok');
+      carga.style.opacity = '0';
+      setTimeout(function () { carga.style.display = 'none'; }, 300);
+    });
+    // Si en 15 segundos no cargó, ofrecer abrir el catálogo directo
+    setTimeout(function () {
+      if (!app.classList.contains('ok')) {
+        document.getElementById('msj').innerHTML =
+          'Está tardando más de lo normal… <a href="' + app.src + '">abrir el catálogo directo</a>';
+      }
+    }, 15000);
+  </script>
+</body>
+</html>
