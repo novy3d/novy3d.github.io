@@ -6,13 +6,9 @@
 <title>NOVY · Impresión 3D</title>
 <meta name="description" content="Figuras, llaveros y piezas impresas en 3D. Mirá el catálogo, armá tu pedido y envialo por WhatsApp.">
 <meta name="theme-color" content="#2E3440">
-
-<!-- Ícono de la pestaña y del celular -->
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-
-<!-- Vista previa al compartir el link (WhatsApp, Instagram, Facebook).
-     Si tu usuario de GitHub NO es "novy3d", cambialo en las 2 líneas que dicen novy3d.github.io -->
+<!-- Vista previa al compartir. Si tu usuario de GitHub NO es "novy3d", cambialo en las 2 líneas con novy3d.github.io -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NOVY">
 <meta property="og:title" content="NOVY · Impresión 3D">
@@ -22,47 +18,393 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; height: 100%; background: #2E3440; overflow: hidden; }
-  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; opacity: 0; transition: opacity .3s; }
-  #app.ok { opacity: 1; }
-  #carga { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-           font: 500 14px system-ui, sans-serif; color: #A7B0C0; transition: opacity .3s; }
-  #carga img { width: 96px; height: 96px; border-radius: 20px; animation: lat 1.4s ease-in-out infinite; }
-  #carga a { color: #ECEFF4; }
-  @keyframes lat { 50% { transform: scale(.92); opacity: .7; } }
+  :root{
+    --bg:#2E3440; --bg2:#272C36; --card:#353C4A; --card2:#3E4656; --line:#4A5263;
+    --txt:#ECEFF4; --mut:#A7B0C0; --red:#640101; --red2:#A3121A; --red3:#C8202A;
+    --ok:#3FA36B; --warn:#D9A13B; --r:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+  button,input,textarea,select{font:inherit;color:inherit}
+  button{cursor:pointer;border:0;background:none}
+  img{display:block;max-width:100%}
+
+  /* Header */
+  header{position:sticky;top:0;z-index:20;background:#2E3440;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .hwrap{max-width:1180px;margin:auto;display:flex;align-items:center;gap:14px;padding:10px 18px}
+  .hwrap img{height:54px}
+  .hwrap .tag{color:var(--mut);font-size:13px;flex:1;line-height:1.3}
+  .ig{display:flex;align-items:center;gap:7px;color:var(--mut);font-size:14px;font-weight:600;text-decoration:none;padding:8px 10px;border-radius:999px}
+  .ig:hover{color:var(--txt);background:var(--card)}
+  .ig svg{width:20px;height:20px}
+  footer a{color:var(--txt);text-decoration:none;font-weight:600}
+  footer a:hover{color:var(--red3)}
+  footer .ct{display:flex;justify-content:center;gap:18px;margin-bottom:8px;flex-wrap:wrap}
+  .cartbtn{position:relative;display:flex;align-items:center;gap:8px;background:var(--red2);padding:10px 16px;border-radius:999px;font-weight:600;transition:.15s}
+  .cartbtn:hover{background:var(--red3)}
+  .cartbtn .n{background:#fff;color:var(--red);border-radius:999px;min-width:22px;height:22px;display:grid;place-items:center;font-size:12px;font-weight:700;padding:0 6px}
+  .cartbtn.bump{animation:bump .35s}
+  @keyframes bump{40%{transform:scale(1.12)}}
+
+  main{max-width:1180px;margin:auto;padding:22px 18px 80px}
+  .hero{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .hero h1{font-family:'Archivo Black',sans-serif;font-size:clamp(26px,4vw,38px);letter-spacing:.5px;line-height:1}
+  .hero h1 span{color:var(--red3)}
+  .custom{border:1px dashed var(--line);border-radius:999px;padding:9px 16px;color:var(--mut);font-size:14px}
+  .custom:hover{border-color:var(--red3);color:var(--txt)}
+
+  .search{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;outline:none}
+  .search:focus{border-color:var(--red2)}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;scrollbar-width:none}
+  .chip{white-space:nowrap;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:14px;color:var(--mut)}
+  .chip.on{background:var(--red2);border-color:var(--red2);color:#fff}
+  .chips.sub .chip{font-size:13px;padding:5px 12px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-top:14px}
+  .card{background:var(--card);border-radius:var(--r);overflow:hidden;text-align:left;border:1px solid transparent;transition:.18s;display:flex;flex-direction:column}
+  .card:hover{transform:translateY(-3px);border-color:var(--line)}
+  .card .ph{aspect-ratio:1;background:var(--bg2);position:relative;overflow:hidden}
+  .card .ph img{width:100%;height:100%;object-fit:cover}
+  .badge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(39,44,54,.85)}
+  .badge.Disponible{color:#7EE0A6}.badge.Agotado{color:#fff;background:#6b6f78}.badge.pedido{color:var(--warn)}
+  .card.out .ph img{filter:grayscale(1) opacity(.55)}
+  .card .info{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
+  .card .sub{font-size:12px;color:var(--mut)}
+  .card h3{font-size:16px;font-weight:600;line-height:1.25}
+  .card .pr{margin-top:auto;padding-top:6px;font-weight:700;font-size:17px}
+  .card .pr small{font-weight:500;color:var(--mut);font-size:12px;margin-right:3px}
+  .empty{color:var(--mut);text-align:center;padding:60px 10px}
+  .noimg{width:100%;height:100%;display:grid;place-items:center;font-family:'Archivo Black';font-size:42px;color:var(--red);background:linear-gradient(135deg,#2b303b,#3a4150)}
+
+  /* Modal + drawer */
+  .ov{position:fixed;inset:0;background:rgba(10,12,16,.65);z-index:40;display:none}
+  .ov.on{display:block}
+  .modal{position:fixed;z-index:50;left:50%;top:50%;transform:translate(-50%,-50%);width:min(940px,94vw);max-height:92vh;overflow:auto;background:var(--bg2);border-radius:18px;display:none;border:1px solid var(--line)}
+  .modal.on{display:grid;grid-template-columns:1.05fr 1fr}
+  .x{position:absolute;right:12px;top:12px;width:36px;height:36px;border-radius:50%;background:var(--card2);font-size:20px;z-index:2}
+  .gal{padding:16px}
+  .gal .main{aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--bg)}
+  .gal .main img{width:100%;height:100%;object-fit:cover}
+  .thumbs{display:flex;gap:8px;margin-top:10px;overflow-x:auto}
+  .thumbs img{width:62px;height:62px;object-fit:cover;border-radius:8px;opacity:.55;border:2px solid transparent;cursor:pointer}
+  .thumbs img.on{opacity:1;border-color:var(--red2)}
+  .det{padding:26px 24px 22px 8px;display:flex;flex-direction:column;gap:14px}
+  .det h2{font-size:24px;line-height:1.15;padding-right:36px}
+  .det .desc{color:var(--mut);line-height:1.5;white-space:pre-line}
+  .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin-bottom:7px;font-weight:600}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--card);font-size:14px;text-align:left}
+  .opt small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+  .opt.on{border-color:var(--red3);background:rgba(163,18,26,.18)}
+  .inp{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+  .inp:focus{border-color:var(--red2)}
+  .chk{display:flex;align-items:center;gap:9px;cursor:pointer}
+  .chk input{accent-color:var(--red3);width:18px;height:18px}
+  .buy{display:flex;align-items:center;gap:12px;margin-top:auto;padding-top:6px}
+  .qty{display:flex;align-items:center;background:var(--card);border-radius:10px;border:1px solid var(--line)}
+  .qty button{width:36px;height:40px;font-size:18px}
+  .qty span{min-width:28px;text-align:center;font-weight:600}
+  .big{flex:1;background:var(--red2);border-radius:12px;padding:13px 16px;font-weight:700;display:flex;justify-content:space-between;gap:10px;transition:.15s}
+  .big:hover{background:var(--red3)}
+  .big:disabled{background:#5a5f69;cursor:not-allowed}
+  .note{font-size:13px;color:var(--mut)}
+  .warn{font-size:13px;color:var(--warn)}
+
+  .drawer{position:fixed;z-index:50;top:0;right:0;height:100%;width:min(430px,100vw);background:var(--bg2);border-left:1px solid var(--line);transform:translateX(100%);transition:.25s;display:flex;flex-direction:column}
+  .drawer.on{transform:none}
+  .dh{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .dh h2{font-size:20px}
+  .db{flex:1;overflow:auto;padding:14px 20px}
+  .it{display:grid;grid-template-columns:58px 1fr auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .it img,.it .noimg{width:58px;height:58px;border-radius:8px;object-fit:cover;font-size:18px}
+  .it h4{font-size:14px;font-weight:600}
+  .it .meta{font-size:12px;color:var(--mut);margin-top:2px}
+  .it .r{text-align:right;display:flex;flex-direction:column;align-items:end;gap:6px}
+  .it .qty button{width:28px;height:30px;font-size:15px}
+  .rm{font-size:12px;color:var(--mut);text-decoration:underline}
+  .df{padding:16px 20px 20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;justify-content:space-between}
+  .tot{font-size:20px;font-weight:700}
+  .ok{text-align:center;padding:30px 10px;display:flex;flex-direction:column;gap:12px;align-items:center}
+  .ok .ic{font-size:46px}
+  .wa{background:#1FA855}.wa:hover{background:#24bf61}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);background:var(--card2);padding:12px 18px;border-radius:12px;opacity:0;transition:.25s;z-index:60;pointer-events:none}
+  .toast.on{opacity:1;transform:translateX(-50%)}
+  footer{color:var(--mut);text-align:center;font-size:13px;padding:30px 0 10px}
+
+  @media (max-width:720px){
+    .ig span{display:none}
+    .modal.on{grid-template-columns:1fr;top:auto;bottom:0;left:0;transform:none;width:100vw;max-height:94vh;border-radius:18px 18px 0 0}
+    .det{padding:4px 18px 22px}
+    .hwrap .tag{display:none}
+    .hwrap{justify-content:space-between}
+    .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+    .card h3{font-size:14px}.card .pr{font-size:15px}
+  }
 </style>
 </head>
 <body>
-  <div id="carga">
-    <img src="apple-touch-icon.png" alt="NOVY">
-    <span id="msj">Cargando catálogo…</span>
+<header>
+  <div class="hwrap">
+    <img src="logo.png" alt="NOVY">
+    <div class="tag" id="tagline"></div>
+    <a class="ig" id="igLink" target="_blank" rel="noopener" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg><span id="igUser"></span></a>
+    <button class="cartbtn" id="cartBtn" onclick="abrirCarrito()">🛒 Pedido <span class="n" id="cartN">0</span></button>
   </div>
+</header>
 
-  <!-- ÚNICA línea a cambiar si alguna vez cambia la URL de la web app -->
-  <iframe id="app" title="Catálogo NOVY"
-    src="https://script.google.com/macros/s/AKfycbz9epmS3ZrpIl5IgYoZBsZosj6myCUH1XE93v-MvQgyDxiu5b38NJEcivPbGEltygzU/exec"
-    allow="clipboard-write; web-share"></iframe>
+<main>
+  <div class="hero">
+    <h1>Catálogo <span>3D</span></h1>
+    <button class="custom" onclick="consultaPersonalizada()">✏️ ¿Querés algo personalizado? Consultanos</button>
+  </div>
+  <input class="search" id="q" placeholder="Buscar productos…" oninput="render()">
+  <div class="chips" id="cats"></div>
+  <div class="chips sub" id="subs"></div>
+  <div class="grid" id="grid"><div class="empty">Cargando catálogo…</div></div>
+  <footer id="foot"></footer>
+</main>
 
-  <noscript><p style="color:#fff;text-align:center;font-family:sans-serif">
-    <a style="color:#fff" href="https://script.google.com/macros/s/AKfycbz9epmS3ZrpIl5IgYoZBsZosj6myCUH1XE93v-MvQgyDxiu5b38NJEcivPbGEltygzU/exec">Abrir catálogo NOVY</a>
-  </p></noscript>
+<div class="ov" id="ov" onclick="cerrarTodo()"></div>
+<div class="modal" id="modal"></div>
+<aside class="drawer" id="drawer"></aside>
+<div class="toast" id="toast"></div>
 
-  <script>
-    var app = document.getElementById('app'), carga = document.getElementById('carga');
-    app.addEventListener('load', function () {
-      app.classList.add('ok');
-      carga.style.opacity = '0';
-      setTimeout(function () { carga.style.display = 'none'; }, 300);
+<script>
+let DATA = null, NEG = null, PROD = {};
+let filtroCat = '', filtroSub = '';
+let sel = null;            // selección en el modal
+let carrito = [];          // [{key, productoId, varianteId, material, color, personalizacion, cantidad}]
+let enviando = false;
+
+function contacto(){
+  const igUser = (NEG.instagram.match(/instagram\.com\/([^\/?#]+)/i)||[])[1] || '';
+  if (NEG.instagram) { const a = document.getElementById('igLink'); a.href = NEG.instagram; a.style.display = 'flex'; document.getElementById('igUser').textContent = igUser ? '@'+igUser : 'Instagram'; }
+  const wa = NEG.whatsapp, waTxt = wa.length===13 && wa.startsWith('549') ? '+54 9 '+wa.slice(3,7)+' '+wa.slice(7,9)+'-'+wa.slice(9) : '+'+wa;
+  let h = '<div class="ct"><a href="https://wa.me/'+wa+'" target="_blank" rel="noopener">💬 WhatsApp '+waTxt+'</a>';
+  if (NEG.instagram) h += '<a href="'+NEG.instagram.replace(/"/g,'')+'" target="_blank" rel="noopener">📷 Instagram '+(igUser?'@'+igUser:'')+'</a>';
+  h += '</div>© ' + new Date().getFullYear() + ' ' + NEG.nombre + ' · Impresión 3D';
+  document.getElementById('foot').innerHTML = h;
+}
+
+/** Arranca (o refresca) la página con los datos del catálogo. */
+function iniciar(d){
+  DATA = d; NEG = d.negocio; PROD = {};
+  d.productos.forEach(p => PROD[p.id] = p);
+  carrito = cargar();
+  document.getElementById('tagline').textContent = NEG.bienvenida || '';
+  contacto();
+  render();
+}
+
+/** Envía el pedido: por google.script.run dentro de Apps Script, o por fetch desde GitHub Pages. */
+function enviarPedido(items, cli, com){
+  if (window.API_URL) {
+    return fetch(window.API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({accion: 'pedido', items: items, cliente: cli, comentario: com})
+    }).then(r => r.json()).then(r => { if (!r.ok) throw new Error(r.error || 'Error'); return r; });
+  }
+  return new Promise((ok, ko) => google.script.run.withSuccessHandler(ok).withFailureHandler(ko).registrarPedido(items, cli, com));
+}
+
+// ───────── Utilidades
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function dinero(n){n=Math.round(n*100)/100;const e=Math.floor(Math.abs(n)),d=Math.round((Math.abs(n)-e)*100);return (n<0?'-':'')+'$'+String(e).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(d?','+String(d).padStart(2,'0'):'')}
+function img(id,w){ if(!id) return ''; if(/^https?:/.test(id)) return id; return 'https://lh3.googleusercontent.com/d/'+id+'=w'+(w||800); }
+function imgTag(id,w,alt){
+  if(!id) return '<div class="noimg">N</div>';
+  const fb = /^https?:/.test(id)?'':'https://drive.google.com/thumbnail?id='+id+'&sz=w'+(w||800);
+  return '<img loading="lazy" src="'+img(id,w)+'" alt="'+esc(alt||'')+'"'+(fb?' onerror="this.onerror=null;this.src=\''+fb+'\'"':'')+'>';
+}
+function desde(p){ let m=Infinity; p.variantes.forEach(v=>Object.values(v.precios).forEach(x=>{if(x<m)m=x})); return m; }
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)}
+function guardar(){try{localStorage.setItem('novy_carrito',JSON.stringify(carrito))}catch(e){}}
+function cargar(){try{const c=JSON.parse(localStorage.getItem('novy_carrito')||'[]');return c.filter(i=>PROD[i.productoId]&&PROD[i.productoId].variantes.some(v=>v.id===i.varianteId))}catch(e){return[]}}
+
+// ───────── Listado
+function render(){
+  const q = $('q').value.trim().toLowerCase();
+  const cats = [...new Set(DATA.productos.map(p=>p.categoria))];
+  $('cats').innerHTML = ['<button class="chip '+(!filtroCat?'on':'')+'" onclick="setCat(\'\')">Todo</button>']
+    .concat(cats.map(c=>'<button class="chip '+(c===filtroCat?'on':'')+'" onclick="setCat(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>')).join('');
+  const subs = filtroCat ? [...new Set(DATA.productos.filter(p=>p.categoria===filtroCat&&p.subcategoria).map(p=>p.subcategoria))] : [];
+  $('subs').style.display = subs.length>1 ? 'flex' : 'none';
+  $('subs').innerHTML = ['<button class="chip '+(!filtroSub?'on':'')+'" onclick="setSub(\'\')">Todas</button>']
+    .concat(subs.map(s=>'<button class="chip '+(s===filtroSub?'on':'')+'" onclick="setSub(\''+esc(s).replace(/'/g,"\\'")+'\')">'+esc(s)+'</button>')).join('');
+
+  const lista = DATA.productos.filter(p =>
+    (!filtroCat || p.categoria===filtroCat) && (!filtroSub || p.subcategoria===filtroSub) &&
+    (!q || (p.nombre+' '+p.descripcion+' '+p.categoria+' '+p.subcategoria).toLowerCase().includes(q)));
+  $('grid').innerHTML = lista.length ? lista.map(p => {
+    const b = p.estado==='A pedido' ? 'pedido' : p.estado;
+    return '<button class="card '+(p.estado==='Agotado'?'out':'')+'" onclick="abrirProducto(\''+p.id+'\')">'+
+      '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+'<span class="badge '+b+'">'+esc(p.estado)+'</span></div>'+
+      '<div class="info"><span class="sub">'+esc(p.subcategoria||p.categoria)+'</span><h3>'+esc(p.nombre)+'</h3>'+
+      '<div class="pr">'+(p.variantes.length>1?'<small>desde</small>':'')+dinero(desde(p))+'</div></div></button>';
+  }).join('') : '<div class="empty">No encontramos productos con ese filtro.</div>';
+  actualizarContador();
+}
+function setCat(c){filtroCat=c;filtroSub='';render()}
+function setSub(s){filtroSub=s;render()}
+
+// ───────── Detalle de producto
+function abrirProducto(id){
+  const p = PROD[id];
+  sel = {p:p, v:p.variantes[0].id, m:p.materiales[0], c:p.colores[0]||'', perso:false, texto:'', cant:1, foto:0};
+  pintarModal();
+  $('ov').classList.add('on'); $('modal').classList.add('on');
+}
+function precioSel(){
+  const v = sel.p.variantes.find(x=>x.id===sel.v);
+  return v.precios[sel.m] + (sel.perso && sel.p.personalizable ? sel.p.recargoPersonalizacion : 0);
+}
+function pintarModal(){
+  const p = sel.p, agot = p.estado==='Agotado';
+  const fotos = p.imagenes.length ? p.imagenes : [''];
+  let h = '<button class="x" onclick="cerrarTodo()">×</button>';
+  h += '<div class="gal"><div class="main">'+imgTag(fotos[sel.foto],1000,p.nombre)+'</div>';
+  if (fotos.length>1) h += '<div class="thumbs">'+fotos.map((f,i)=>'<img src="'+img(f,160)+'" class="'+(i===sel.foto?'on':'')+'" onclick="sel.foto='+i+';pintarModal()">').join('')+'</div>';
+  h += '</div><div class="det">';
+  h += '<div><div class="note">'+esc(p.categoria)+(p.subcategoria?' · '+esc(p.subcategoria):'')+'</div><h2>'+esc(p.nombre)+'</h2></div>';
+  if (p.descripcion) h += '<p class="desc">'+esc(p.descripcion)+'</p>';
+  h += '<div><div class="lbl">Medida</div><div class="opts">'+p.variantes.map(v=>
+        '<button class="opt '+(v.id===sel.v?'on':'')+'" onclick="sel.v=\''+v.id+'\';pintarModal()">'+esc(v.medida)+'<small>'+dinero(v.precios[sel.m])+'</small></button>').join('')+'</div></div>';
+  if (p.materiales.length>1) h += '<div><div class="lbl">Material</div><div class="opts">'+p.materiales.map(m=>
+        '<button class="opt '+(m===sel.m?'on':'')+'" onclick="sel.m=\''+esc(m)+'\';pintarModal()">'+esc(m)+'</button>').join('')+'</div></div>';
+  if (p.colores.length) h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>
+        '<button class="opt '+(c===sel.c?'on':'')+'" onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';pintarModal()">'+esc(c)+'</button>').join('')+'</div></div>';
+  if (p.personalizable) {
+    h += '<div><label class="chk"><input type="checkbox" '+(sel.perso?'checked':'')+' onchange="sel.perso=this.checked;pintarModal()"> Personalizar'+
+         (p.recargoPersonalizacion?' <span class="note">(+'+dinero(p.recargoPersonalizacion)+')</span>':'')+'</label>';
+    if (sel.perso) h += '<input class="inp" style="margin-top:8px" maxlength="200" placeholder="¿Qué querés personalizar? (nombre, texto, detalle…)" value="'+esc(sel.texto)+'" oninput="sel.texto=this.value">';
+    h += '</div>';
+  }
+  if (p.estado==='A pedido') h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
+  h += '<div class="buy"><div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);pintarModal()">−</button><span>'+sel.cant+'</span><button onclick="sel.cant=Math.min(999,sel.cant+1);pintarModal()">+</button></div>'+
+       '<button class="big" '+(agot?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':'Agregar al pedido')+'</span><span>'+dinero(precioSel()*sel.cant)+'</span></button></div>';
+  h += '</div>';
+  $('modal').innerHTML = h;
+}
+function agregar(){
+  if (sel.perso && !sel.texto.trim()) { toast('Contanos qué querés personalizar'); return; }
+  const perso = sel.perso ? sel.texto.trim() : '';
+  const key = [sel.p.id, sel.v, sel.m, sel.c, perso].join('|');
+  const ex = carrito.find(i=>i.key===key);
+  if (ex) ex.cantidad = Math.min(999, ex.cantidad + sel.cant);
+  else carrito.push({key:key, productoId:sel.p.id, varianteId:sel.v, material:sel.m, color:sel.c, personalizacion:perso, cantidad:sel.cant});
+  guardar(); cerrarTodo(); actualizarContador();
+  const b=$('cartBtn'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
+  toast('Agregado al pedido ✓');
+}
+
+// ───────── Carrito
+function linea(i){
+  const p = PROD[i.productoId], v = p.variantes.find(x=>x.id===i.varianteId);
+  const unit = v.precios[i.material] + (i.personalizacion ? p.recargoPersonalizacion : 0);
+  return {p:p, v:v, unit:unit, importe:unit*i.cantidad};
+}
+function totales(){
+  let sub=0, perso=false;
+  carrito.forEach(i=>{const l=linea(i); sub+=l.importe; if(i.personalizacion) perso=true;});
+  const desc = (NEG.mayoristaMin>0 && NEG.mayoristaPct>0 && sub>=NEG.mayoristaMin) ? Math.round(sub*NEG.mayoristaPct)/100 : 0;
+  return {sub:sub, desc:desc, total:sub-desc, perso:perso, faltaMin: perso && NEG.minimoPersonalizado>0 && sub<NEG.minimoPersonalizado};
+}
+function actualizarContador(){ $('cartN').textContent = carrito.reduce((a,i)=>a+i.cantidad,0); }
+function abrirCarrito(){ pintarCarrito(); $('ov').classList.add('on'); $('drawer').classList.add('on'); }
+function pintarCarrito(estado){
+  const d = $('drawer');
+  let h = '<div class="dh"><h2>Tu pedido</h2><button class="x" style="position:static" onclick="cerrarTodo()">×</button></div>';
+  if (estado && estado.ok) {
+    h += '<div class="db"><div class="ok"><div class="ic">✅</div><h3>Pedido '+esc(estado.numero)+' registrado</h3>'+
+         '<p class="note">Si WhatsApp no se abrió solo, tocá el botón para enviarnos el pedido.</p>'+
+         '<a class="big wa" style="justify-content:center;text-decoration:none;color:#fff;width:100%" href="'+esc(estado.url)+'" target="_blank" rel="noopener">Abrir WhatsApp</a>'+
+         '<button class="rm" onclick="pintarCarrito()">Volver</button></div></div>';
+    d.innerHTML = h; return;
+  }
+  if (!carrito.length) {
+    h += '<div class="db"><div class="empty">Todavía no agregaste productos.</div></div>';
+    d.innerHTML = h; return;
+  }
+  h += '<div class="db">' + carrito.map((i,ix)=>{
+    const l = linea(i);
+    const meta = [l.v.medida, l.p.materiales.length>1?i.material:'', i.color].filter(Boolean).join(' · ');
+    return '<div class="it">'+imgTag(l.p.imagenes[0],160,l.p.nombre)+
+      '<div><h4>'+esc(l.p.nombre)+'</h4><div class="meta">'+esc(meta)+'</div>'+
+      (i.personalizacion?'<div class="meta">✏️ '+esc(i.personalizacion)+'</div>':'')+
+      '<div class="meta">'+dinero(l.unit)+' c/u</div></div>'+
+      '<div class="r"><b>'+dinero(l.importe)+'</b><div class="qty"><button onclick="cant('+ix+',-1)">−</button><span>'+i.cantidad+'</span><button onclick="cant('+ix+',1)">+</button></div>'+
+      '<button class="rm" onclick="quitar('+ix+')">Quitar</button></div></div>';
+  }).join('') + '</div>';
+  const t = totales();
+  h += '<div class="df">';
+  if (t.desc) h += '<div class="row note"><span>Subtotal</span><span>'+dinero(t.sub)+'</span></div><div class="row note"><span>Descuento mayorista</span><span>−'+dinero(t.desc)+'</span></div>';
+  h += '<div class="row tot"><span>Total</span><span>'+dinero(t.total)+'</span></div>';
+  if (!t.desc && NEG.mayoristaMin>0 && NEG.mayoristaPct>0) h += '<p class="note">Llegando a '+dinero(NEG.mayoristaMin)+' tenés '+NEG.mayoristaPct+'% de descuento.</p>';
+  if (t.perso) h += '<p class="note">Incluye personalización: el precio final te lo confirmamos por WhatsApp.</p>';
+  if (t.faltaMin) h += '<p class="warn">Los pedidos personalizados tienen un mínimo de '+dinero(NEG.minimoPersonalizado)+'.</p>';
+  h += '<input class="inp" id="cli" maxlength="80" placeholder="Tu nombre (opcional)" value="'+esc(sessionStorageGet('novy_cli'))+'">';
+  h += '<textarea class="inp" id="com" rows="2" maxlength="500" placeholder="Comentario: envío, retiro, fecha… (opcional)"></textarea>';
+  h += '<button class="big wa" id="enviar" '+(t.faltaMin?'disabled':'')+' onclick="enviar()"><span>Enviar pedido por WhatsApp</span><span>→</span></button>';
+  if (estado && estado.error) h += '<p class="warn">'+esc(estado.error)+'</p>';
+  h += '</div>';
+  d.innerHTML = h;
+}
+function sessionStorageGet(k){try{return localStorage.getItem(k)||''}catch(e){return''}}
+function cant(ix,d){ carrito[ix].cantidad=Math.max(1,Math.min(999,carrito[ix].cantidad+d)); guardar(); actualizarContador(); pintarCarrito(); }
+function quitar(ix){ carrito.splice(ix,1); guardar(); actualizarContador(); pintarCarrito(); }
+
+function enviar(){
+  if (enviando || !carrito.length) return;
+  enviando = true;
+  const cli = $('cli').value, com = $('com').value;
+  try{localStorage.setItem('novy_cli',cli)}catch(e){}
+  const btn = $('enviar'); btn.disabled = true; btn.firstChild.textContent = 'Registrando pedido…';
+  // Se abre la pestaña ya (con el clic del usuario) para que el navegador no la bloquee.
+  let win = null; try { win = window.open('', '_blank'); } catch(e) {}
+  const items = carrito.map(i=>({productoId:i.productoId, varianteId:i.varianteId, material:i.material, color:i.color, cantidad:i.cantidad, personalizacion:i.personalizacion}));
+  enviarPedido(items, cli, com)
+    .then(r => {
+      enviando = false;
+      if (win && !win.closed) { try { win.location.href = r.url; } catch(e) {} }
+      carrito = []; guardar(); actualizarContador();
+      pintarCarrito({ok:true, numero:r.numero, url:r.url});
+    })
+    .catch(err => {
+      enviando = false;
+      if (win && !win.closed) win.close();
+      pintarCarrito({error: (err && err.message && err.message !== 'Failed to fetch') ? err.message : 'No se pudo registrar el pedido. Revisá tu conexión y probá de nuevo.'});
     });
-    // Si en 15 segundos no cargó, ofrecer abrir el catálogo directo
-    setTimeout(function () {
-      if (!app.classList.contains('ok')) {
-        document.getElementById('msj').innerHTML =
-          'Está tardando más de lo normal… <a href="' + app.src + '">abrir el catálogo directo</a>';
-      }
-    }, 15000);
-  </script>
+}
+
+function consultaPersonalizada(){
+  let t = '¡Hola ' + NEG.nombre + '! 👋 Quiero consultar por un pedido personalizado.';
+  if (NEG.minimoPersonalizado > 0) t += '\n(Vi que el mínimo es ' + dinero(NEG.minimoPersonalizado) + ')';
+  window.open('https://wa.me/' + NEG.whatsapp + '?text=' + encodeURIComponent(t), '_blank');
+}
+function cerrarTodo(){ ['ov','modal','drawer'].forEach(id=>$(id).classList.remove('on')); }
+document.addEventListener('keydown', e => { if (e.key==='Escape') cerrarTodo(); });
+
+// ── Versión GitHub Pages: los datos vienen de la web app de Apps Script
+// ÚNICA línea a cambiar si alguna vez cambia la URL de la web app:
+window.API_URL = 'https://script.google.com/macros/s/AKfycbz9epmS3ZrpIl5IgYoZBsZosj6myCUH1XE93v-MvQgyDxiu5b38NJEcivPbGEltygzU/exec';
+(function cargarCatalogo(){
+  let cache = null;
+  try { cache = JSON.parse(localStorage.getItem('novy_catalogo') || 'null'); } catch(e) {}
+  if (cache) iniciar(cache);   // muestra al instante la última versión vista
+  fetch(API_URL + '?api=catalogo&t=' + Date.now())
+    .then(r => r.json())
+    .then(d => { if (!d || !d.productos) throw new Error('Respuesta inválida'); try { localStorage.setItem('novy_catalogo', JSON.stringify(d)); } catch(e) {} iniciar(d); })
+    .catch(() => {
+      if (!cache) document.getElementById('grid').innerHTML =
+        '<div class="empty">No pudimos cargar el catálogo. <button class="chip" onclick="location.reload()">Reintentar</button></div>';
+    });
+})();
+</script>
 </body>
 </html>
