@@ -77,6 +77,33 @@
   .card .pr{margin-top:auto;padding-top:6px;font-weight:700;font-size:17px}
   .card .pr small{font-weight:500;color:var(--mut);font-size:12px;margin-right:3px}
   .empty{color:var(--mut);text-align:center;padding:60px 10px}
+  /* Etiquetas, destacados, ofertas y combos */
+  .tags{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+  .tags .badge{position:static}
+  .badge.of{background:var(--red3);color:#fff}
+  .badge.cb{background:#5B3FA8;color:#fff}
+  .star{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:17px;
+        background:linear-gradient(135deg,#FFD866,#E5A92B);box-shadow:0 2px 10px rgba(229,169,43,.55);animation:brillo 2.6s ease-in-out infinite}
+  @keyframes brillo{50%{box-shadow:0 2px 18px rgba(255,216,102,.9);transform:scale(1.06)}}
+  .card.dest{border-color:rgba(229,169,43,.55);box-shadow:0 0 0 1px rgba(229,169,43,.25),0 6px 22px rgba(229,169,43,.12)}
+  .pr s,.price s{color:var(--mut);font-weight:500;font-size:.8em;margin-right:6px}
+  .ahorro{color:#7EE0A6;font-size:13px;font-weight:600}
+  .destsec{margin:18px 0 6px}
+  .destsec h2{font-family:'Archivo Black',sans-serif;font-size:20px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .destsec h2 span{color:#FFD866}
+  .drow{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(210px,240px);gap:14px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x mandatory;scrollbar-width:thin}
+  .drow .card{scroll-snap-align:start}
+  .sectit{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);font-weight:700;margin-top:14px}
+  .chip.of{border-color:var(--red3);color:#ffb3b3}.chip.of.on{color:#fff}
+  .ofbox{background:rgba(200,32,42,.14);border:1px solid rgba(200,32,42,.5);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:600}
+  .comp{display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .comp img,.comp .noimg{width:48px;height:48px;border-radius:8px;object-fit:cover;font-size:16px}
+  .comp b{font-size:14px;font-weight:600}
+  .comp .opts{margin-top:5px}.comp .opt{padding:4px 9px;font-size:12px}
+  .price{font-size:26px;font-weight:700;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
+  .share{border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--mut);align-self:flex-start}
+  .share:hover{color:var(--txt);border-color:var(--red3)}
+  .hp{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0}
   .noimg{width:100%;height:100%;display:grid;place-items:center;font-family:'Archivo Black';font-size:42px;color:var(--red);background:linear-gradient(135deg,#2b303b,#3a4150)}
 
   /* Modal + drawer */
@@ -164,6 +191,7 @@
   <input class="search" id="q" placeholder="Buscar productos…" oninput="render()">
   <div class="chips" id="cats"></div>
   <div class="chips sub" id="subs"></div>
+  <div id="dest"></div>
   <div class="grid" id="grid"><div class="empty">Cargando catálogo…</div></div>
   <footer id="foot"></footer>
 </main>
@@ -191,25 +219,44 @@ function contacto(){
 }
 
 /** Arranca (o refresca) la página con los datos del catálogo. */
+const CARGA = Date.now();
+let SLUG = {};
 function iniciar(d){
-  DATA = d; NEG = d.negocio; PROD = {};
-  d.productos.forEach(p => PROD[p.id] = p);
+  DATA = d; NEG = d.negocio; PROD = {}; SLUG = {};
+  d.productos.forEach(p => { PROD[p.id] = p; if (p.slug) SLUG[p.slug] = p.id; });
   carrito = cargar();
   document.getElementById('tagline').textContent = NEG.bienvenida || '';
   contacto();
   render();
+  if (!$('modal').classList.contains('on')) abrirDesdeLink();
+}
+
+// ───────── Links directos: …/#nombre-del-producto abre ese producto
+function abrirDesdeLink(){
+  const s = decodeURIComponent((location.hash || '').slice(1));
+  if (s && SLUG[s]) abrirProducto(SLUG[s], true);
+}
+window.addEventListener('hashchange', () => { if (DATA) { if (location.hash) abrirDesdeLink(); else cerrarTodo(true); } });
+function ponerHash(slug){ try { history.replaceState(null, '', slug ? '#' + slug : location.pathname + location.search); } catch(e) {} }
+function linkProducto(p){ return location.origin + location.pathname + '#' + p.slug; }
+function compartir(){
+  const p = sel.p, url = linkProducto(p);
+  if (navigator.share) { navigator.share({title: p.nombre + ' · ' + NEG.nombre, url: url}).catch(()=>{}); return; }
+  const ok = () => toast('Link copiado ✓');
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(ok, () => prompt('Copiá el link:', url));
+  else prompt('Copiá el link:', url);
 }
 
 /** Envía el pedido: por google.script.run dentro de Apps Script, o por fetch desde GitHub Pages. */
-function enviarPedido(items, cli, com){
+function enviarPedido(items, cli, com, extra){
   if (window.API_URL) {
     return fetch(window.API_URL, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify({accion: 'pedido', items: items, cliente: cli, comentario: com})
+      body: JSON.stringify({accion: 'pedido', items: items, cliente: cli, comentario: com, hp: extra.hp, t: extra.t})
     }).then(r => r.json()).then(r => { if (!r.ok) throw new Error(r.error || 'Error'); return r; });
   }
-  return new Promise((ok, ko) => google.script.run.withSuccessHandler(ok).withFailureHandler(ko).registrarPedido(items, cli, com));
+  return new Promise((ok, ko) => google.script.run.withSuccessHandler(ok).withFailureHandler(ko).registrarPedido(items, cli, com, extra));
 }
 
 // ───────── Utilidades
@@ -226,82 +273,123 @@ function imgTag(id,w,alt,controles){
   const fb = /^https?:/.test(id) ? ((w||800)<=500 && chica(id) ? id : '') : 'https://drive.google.com/thumbnail?id='+id+'&sz=w'+(w||800);
   return '<img loading="lazy" src="'+img(id,w)+'" alt="'+esc(alt||'')+'"'+(fb?' onerror="this.onerror=null;this.src=\''+fb+'\'"':'')+'>';
 }
-function desde(p){ let m=Infinity; p.variantes.forEach(v=>Object.values(v.precios).forEach(x=>{if(x<m)m=x})); return m; }
+/** Precio más bajo del producto y su precio de lista (si está en oferta). */
+function desde(p){
+  let m=Infinity, l=0;
+  p.variantes.forEach(v=>Object.keys(v.precios).forEach(k=>{ if(v.precios[k]<m){ m=v.precios[k]; l=(v.lista&&v.lista[k])||0; } }));
+  return {precio:m, lista:l>m?l:0};
+}
+function fechaCorta(iso){ const m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3]+'/'+m[2] : ''; }
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2200)}
 function guardar(){try{localStorage.setItem('novy_carrito',JSON.stringify(carrito))}catch(e){}}
 function cargar(){try{const c=JSON.parse(localStorage.getItem('novy_carrito')||'[]');return c.filter(i=>PROD[i.productoId]&&PROD[i.productoId].variantes.some(v=>v.id===i.varianteId))}catch(e){return[]}}
 
 // ───────── Listado
+function card(p, dest){
+  const b = p.estado==='A pedido' ? 'pedido' : p.estado, d = desde(p);
+  const tags = '<div class="tags"><span class="badge '+b+'">'+esc(p.estado)+'</span>'+
+    (p.oferta?'<span class="badge of">-'+p.oferta+'%</span>':'')+(p.tipo==='combo'?'<span class="badge cb">🎁 Combo</span>':'')+'</div>';
+  return '<button class="card '+(p.estado==='Agotado'?'out ':'')+(p.destacado?'dest':'')+'" onclick="abrirProducto(\''+p.id+'\')">'+
+    '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+tags+(p.destacado?'<span class="star" title="Destacado">⭐</span>':'')+'</div>'+
+    '<div class="info"><span class="sub">'+esc(p.subcategoria||p.categoria)+'</span><h3>'+esc(p.nombre)+'</h3>'+
+    '<div class="pr">'+(p.variantes.length>1?'<small>desde</small>':'')+(d.lista?'<s>'+dinero(d.lista)+'</s>':'')+dinero(d.precio)+'</div></div></button>';
+}
 function render(){
   const q = $('q').value.trim().toLowerCase();
+  const hayOfertas = DATA.productos.some(p=>p.oferta);
   const cats = [...new Set(DATA.productos.map(p=>p.categoria))];
   $('cats').innerHTML = ['<button class="chip '+(!filtroCat?'on':'')+'" onclick="setCat(\'\')">Todo</button>']
+    .concat(hayOfertas?['<button class="chip of '+(filtroCat==='__of'?'on':'')+'" onclick="setCat(\'__of\')">🔥 Ofertas</button>']:[])
     .concat(cats.map(c=>'<button class="chip '+(c===filtroCat?'on':'')+'" onclick="setCat(\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>')).join('');
-  const subs = filtroCat ? [...new Set(DATA.productos.filter(p=>p.categoria===filtroCat&&p.subcategoria).map(p=>p.subcategoria))] : [];
+  const subs = filtroCat && filtroCat!=='__of' ? [...new Set(DATA.productos.filter(p=>p.categoria===filtroCat&&p.subcategoria).map(p=>p.subcategoria))] : [];
   $('subs').style.display = subs.length>1 ? 'flex' : 'none';
   $('subs').innerHTML = ['<button class="chip '+(!filtroSub?'on':'')+'" onclick="setSub(\'\')">Todas</button>']
     .concat(subs.map(s=>'<button class="chip '+(s===filtroSub?'on':'')+'" onclick="setSub(\''+esc(s).replace(/'/g,"\\'")+'\')">'+esc(s)+'</button>')).join('');
 
+  // Sección de destacados (solo en la vista inicial, sin filtros ni búsqueda)
+  const dest = DATA.productos.filter(p=>p.destacado);
+  const verDest = !filtroCat && !q && dest.length > 0;
+  $('dest').innerHTML = verDest ? '<section class="destsec"><h2><span>⭐</span> Destacados</h2><div class="drow">'+dest.map(p=>card(p,true)).join('')+'</div></section><div class="sectit">Todos los productos</div>' : '';
+
   const lista = DATA.productos.filter(p =>
-    (!filtroCat || p.categoria===filtroCat) && (!filtroSub || p.subcategoria===filtroSub) &&
-    (!q || (p.nombre+' '+p.descripcion+' '+p.categoria+' '+p.subcategoria).toLowerCase().includes(q)));
-  $('grid').innerHTML = lista.length ? lista.map(p => {
-    const b = p.estado==='A pedido' ? 'pedido' : p.estado;
-    return '<button class="card '+(p.estado==='Agotado'?'out':'')+'" onclick="abrirProducto(\''+p.id+'\')">'+
-      '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+'<span class="badge '+b+'">'+esc(p.estado)+'</span></div>'+
-      '<div class="info"><span class="sub">'+esc(p.subcategoria||p.categoria)+'</span><h3>'+esc(p.nombre)+'</h3>'+
-      '<div class="pr">'+(p.variantes.length>1?'<small>desde</small>':'')+dinero(desde(p))+'</div></div></button>';
-  }).join('') : '<div class="empty">No encontramos productos con ese filtro.</div>';
+    (!filtroCat || (filtroCat==='__of' ? p.oferta : p.categoria===filtroCat)) && (!filtroSub || p.subcategoria===filtroSub) &&
+    (!q || (p.nombre+' '+p.descripcion+' '+p.categoria+' '+p.subcategoria+' '+(p.componentes||[]).map(c=>c.nombre).join(' ')).toLowerCase().includes(q)));
+  $('grid').innerHTML = lista.length ? lista.map(p=>card(p)).join('') : '<div class="empty">No encontramos productos con ese filtro.</div>';
   actualizarContador();
 }
 function setCat(c){filtroCat=c;filtroSub='';render()}
 function setSub(s){filtroSub=s;render()}
 
 // ───────── Detalle de producto
-function abrirProducto(id){
+function abrirProducto(id, desdeLink){
   const p = PROD[id];
-  sel = {p:p, v:p.variantes[0].id, m:p.materiales[0], c:p.colores[0]||'', perso:false, texto:'', cant:1, foto:0};
+  if (!p) return;
+  sel = {p:p, v:p.variantes[0].id, m:p.materiales[0], c:p.colores[0]||'', perso:false, texto:'', cant:1, foto:0,
+         cols:(p.componentes||[]).map(c=>c.colores[0]||'')};
   pintarModal();
+  $('drawer').classList.remove('on');
   $('ov').classList.add('on'); $('modal').classList.add('on');
+  if (p.slug) ponerHash(p.slug);
 }
 function precioSel(){
   const v = sel.p.variantes.find(x=>x.id===sel.v);
   return v.precios[sel.m] + (sel.perso && sel.p.personalizable ? sel.p.recargoPersonalizacion : 0);
 }
+function listaSel(){
+  const v = sel.p.variantes.find(x=>x.id===sel.v);
+  const l = v.lista && v.lista[sel.m];
+  return l && l > v.precios[sel.m] ? l + (sel.perso && sel.p.personalizable ? sel.p.recargoPersonalizacion : 0) : 0;
+}
 function pintarModal(){
-  const p = sel.p, agot = p.estado==='Agotado';
+  const p = sel.p, agot = p.estado==='Agotado', combo = p.tipo==='combo';
   const fotos = p.imagenes.length ? p.imagenes : [''];
   let h = '<button class="x" onclick="cerrarTodo()">×</button>';
   h += '<div class="gal"><div class="main">'+imgTag(fotos[sel.foto],1000,p.nombre,true)+'</div>';
   if (fotos.length>1) h += '<div class="thumbs">'+fotos.map((f,i)=>esVideo(f)?'<video src="'+esc(f)+'#t=0.5" muted playsinline preload="metadata" class="'+(i===sel.foto?'on':'')+'" onclick="sel.foto='+i+';pintarModal()"></video>':'<img src="'+img(f,160)+'" class="'+(i===sel.foto?'on':'')+'" onclick="sel.foto='+i+';pintarModal()">').join('')+'</div>';
   h += '</div><div class="det">';
-  h += '<div><div class="note">'+esc(p.categoria)+(p.subcategoria?' · '+esc(p.subcategoria):'')+'</div><h2>'+esc(p.nombre)+'</h2></div>';
+  h += '<div><div class="note">'+(p.destacado?'⭐ Destacado · ':'')+(combo?'🎁 Combo · ':'')+esc(p.categoria)+(p.subcategoria?' · '+esc(p.subcategoria):'')+'</div><h2>'+esc(p.nombre)+'</h2></div>';
+  if (p.oferta) h += '<div class="ofbox">🔥 Oferta -'+p.oferta+'%'+(p.ofertaHasta?' · hasta el '+fechaCorta(p.ofertaHasta):'')+'</div>';
   if (p.descripcion) h += '<p class="desc">'+esc(p.descripcion)+'</p>';
-  h += '<div><div class="lbl">Medida</div><div class="opts">'+p.variantes.map(v=>
-        '<button class="opt '+(v.id===sel.v?'on':'')+'" onclick="sel.v=\''+v.id+'\';pintarModal()">'+esc(v.medida)+'<small>'+dinero(v.precios[sel.m])+'</small></button>').join('')+'</div></div>';
-  if (p.materiales.length>1) h += '<div><div class="lbl">Material</div><div class="opts">'+p.materiales.map(m=>
-        '<button class="opt '+(m===sel.m?'on':'')+'" onclick="sel.m=\''+esc(m)+'\';pintarModal()">'+esc(m)+'</button>').join('')+'</div></div>';
-  if (p.colores.length) h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>
-        '<button class="opt '+(c===sel.c?'on':'')+'" onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';pintarModal()">'+esc(c)+'</button>').join('')+'</div></div>';
-  if (p.personalizable) {
-    h += '<div><label class="chk"><input type="checkbox" '+(sel.perso?'checked':'')+' onchange="sel.perso=this.checked;pintarModal()"> Personalizar'+
-         (p.recargoPersonalizacion?' <span class="note">(+'+dinero(p.recargoPersonalizacion)+')</span>':'')+'</label>';
-    if (sel.perso) h += '<input class="inp" style="margin-top:8px" maxlength="200" placeholder="¿Qué querés personalizar? (nombre, texto, detalle…)" value="'+esc(sel.texto)+'" oninput="sel.texto=this.value">';
-    h += '</div>';
+
+  if (combo) {
+    h += '<div><div class="lbl">Incluye</div>'+p.componentes.map((c,i)=>
+      '<div class="comp">'+imgTag(c.imagen,160,c.nombre)+'<div><b>'+(c.cantidad>1?c.cantidad+'× ':'')+esc(c.nombre)+'</b> <span class="note">· '+esc(c.medida)+'</span>'+
+      (c.colores.length>1?'<div class="opts">'+c.colores.map(col=>'<button class="opt '+(col===sel.cols[i]?'on':'')+'" onclick="sel.cols['+i+']=\''+esc(col).replace(/'/g,"\\'")+'\';pintarModal()">'+esc(col)+'</button>').join('')+'</div>'
+        :(c.colores.length?'<div class="note">'+esc(c.colores[0])+'</div>':''))+
+      '</div></div>').join('')+'</div>';
+  } else {
+    h += '<div><div class="lbl">Medida</div><div class="opts">'+p.variantes.map(v=>{
+          const l = v.lista && v.lista[sel.m];
+          return '<button class="opt '+(v.id===sel.v?'on':'')+'" onclick="sel.v=\''+v.id+'\';pintarModal()">'+esc(v.medida)+'<small>'+(l?'<s>'+dinero(l)+'</s> ':'')+dinero(v.precios[sel.m])+'</small></button>';
+        }).join('')+'</div></div>';
+    if (p.materiales.length>1) h += '<div><div class="lbl">Material</div><div class="opts">'+p.materiales.map(m=>
+          '<button class="opt '+(m===sel.m?'on':'')+'" onclick="sel.m=\''+esc(m)+'\';pintarModal()">'+esc(m)+'</button>').join('')+'</div></div>';
+    if (p.colores.length) h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>
+          '<button class="opt '+(c===sel.c?'on':'')+'" onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';pintarModal()">'+esc(c)+'</button>').join('')+'</div></div>';
+    if (p.personalizable) {
+      h += '<div><label class="chk"><input type="checkbox" '+(sel.perso?'checked':'')+' onchange="sel.perso=this.checked;pintarModal()"> Personalizar'+
+           (p.recargoPersonalizacion?' <span class="note">(+'+dinero(p.recargoPersonalizacion)+')</span>':'')+'</label>';
+      if (sel.perso) h += '<input class="inp" style="margin-top:8px" maxlength="200" placeholder="¿Qué querés personalizar? (nombre, texto, detalle…)" value="'+esc(sel.texto)+'" oninput="sel.texto=this.value">';
+      h += '</div>';
+    }
   }
+  const pr = precioSel(), li = listaSel();
+  h += '<div class="price">'+(li?'<s>'+dinero(li)+'</s>':'')+dinero(pr)+(li?'<span class="ahorro">Ahorrás '+dinero(li-pr)+'</span>':'')+'</div>';
   if (p.estado==='A pedido') h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
+  if (window.API_URL && p.slug) h += '<button class="share" onclick="compartir()">🔗 Compartir este producto</button>';
   h += '<div class="buy"><div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);pintarModal()">−</button><span>'+sel.cant+'</span><button onclick="sel.cant=Math.min(999,sel.cant+1);pintarModal()">+</button></div>'+
-       '<button class="big" '+(agot?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':'Agregar al pedido')+'</span><span>'+dinero(precioSel()*sel.cant)+'</span></button></div>';
+       '<button class="big" '+(agot?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':'Agregar al pedido')+'</span><span>'+dinero(pr*sel.cant)+'</span></button></div>';
   h += '</div>';
   $('modal').innerHTML = h;
 }
 function agregar(){
   if (sel.perso && !sel.texto.trim()) { toast('Contanos qué querés personalizar'); return; }
   const perso = sel.perso ? sel.texto.trim() : '';
-  const key = [sel.p.id, sel.v, sel.m, sel.c, perso].join('|');
+  const combo = sel.p.tipo==='combo';
+  const key = [sel.p.id, sel.v, sel.m, sel.c, perso, combo?sel.cols.join('/'):''].join('|');
   const ex = carrito.find(i=>i.key===key);
   if (ex) ex.cantidad = Math.min(999, ex.cantidad + sel.cant);
-  else carrito.push({key:key, productoId:sel.p.id, varianteId:sel.v, material:sel.m, color:sel.c, personalizacion:perso, cantidad:sel.cant});
+  else carrito.push({key:key, productoId:sel.p.id, varianteId:sel.v, material:sel.m, color:sel.c, personalizacion:perso, cantidad:sel.cant, colores: combo ? sel.cols.slice() : undefined});
   guardar(); cerrarTodo(); actualizarContador();
   const b=$('cartBtn'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
   toast('Agregado al pedido ✓');
@@ -337,7 +425,9 @@ function pintarCarrito(estado){
   }
   h += '<div class="db">' + carrito.map((i,ix)=>{
     const l = linea(i);
-    const meta = [l.v.medida, l.p.materiales.length>1?i.material:'', i.color].filter(Boolean).join(' · ');
+    const meta = l.p.tipo==='combo'
+      ? l.p.componentes.map((c,k)=>(c.cantidad>1?c.cantidad+'× ':'')+c.nombre+((i.colores&&i.colores[k])?' '+i.colores[k]:'')).join(' + ')
+      : [l.v.medida, l.p.materiales.length>1?i.material:'', i.color].filter(Boolean).join(' · ');
     return '<div class="it">'+imgTag(portada(l.p),160,l.p.nombre)+
       '<div><h4>'+esc(l.p.nombre)+'</h4><div class="meta">'+esc(meta)+'</div>'+
       (i.personalizacion?'<div class="meta">✏️ '+esc(i.personalizacion)+'</div>':'')+
@@ -354,6 +444,7 @@ function pintarCarrito(estado){
   if (t.faltaMin) h += '<p class="warn">Los pedidos personalizados tienen un mínimo de '+dinero(NEG.minimoPersonalizado)+'.</p>';
   h += '<input class="inp" id="cli" maxlength="80" placeholder="Tu nombre (opcional)" value="'+esc(sessionStorageGet('novy_cli'))+'">';
   h += '<textarea class="inp" id="com" rows="2" maxlength="500" placeholder="Comentario: envío, retiro, fecha… (opcional)"></textarea>';
+  h += '<input class="hp" id="web" name="web" tabindex="-1" autocomplete="off" aria-hidden="true">';
   h += '<button class="big wa" id="enviar" '+(t.faltaMin?'disabled':'')+' onclick="enviar()"><span>Enviar pedido por WhatsApp</span><span>→</span></button>';
   if (estado && estado.error) h += '<p class="warn">'+esc(estado.error)+'</p>';
   h += '</div>';
@@ -371,8 +462,8 @@ function enviar(){
   const btn = $('enviar'); btn.disabled = true; btn.firstChild.textContent = 'Registrando pedido…';
   // Se abre la pestaña ya (con el clic del usuario) para que el navegador no la bloquee.
   let win = null; try { win = window.open('', '_blank'); } catch(e) {}
-  const items = carrito.map(i=>({productoId:i.productoId, varianteId:i.varianteId, material:i.material, color:i.color, cantidad:i.cantidad, personalizacion:i.personalizacion}));
-  enviarPedido(items, cli, com)
+  const items = carrito.map(i=>({productoId:i.productoId, varianteId:i.varianteId, material:i.material, color:i.color, cantidad:i.cantidad, personalizacion:i.personalizacion, colores:i.colores}));
+  enviarPedido(items, cli, com, {hp: ($('web')||{}).value || '', t: Date.now() - CARGA})
     .then(r => {
       enviando = false;
       if (win && !win.closed) { try { win.location.href = r.url; } catch(e) {} }
@@ -391,7 +482,11 @@ function consultaPersonalizada(){
   if (NEG.minimoPersonalizado > 0) t += '\n(Vi que el mínimo es ' + dinero(NEG.minimoPersonalizado) + ')';
   window.open('https://wa.me/' + NEG.whatsapp + '?text=' + encodeURIComponent(t), '_blank');
 }
-function cerrarTodo(){ ['ov','modal','drawer'].forEach(id=>$(id).classList.remove('on')); }
+function cerrarTodo(sinHash){
+  const habiaModal = $('modal').classList.contains('on');
+  ['ov','modal','drawer'].forEach(id=>$(id).classList.remove('on'));
+  if (habiaModal && !sinHash) ponerHash('');
+}
 document.addEventListener('keydown', e => { if (e.key==='Escape') cerrarTodo(); });
 
 // ── Versión GitHub Pages: los datos vienen de la web app de Apps Script
