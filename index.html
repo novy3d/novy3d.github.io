@@ -216,13 +216,14 @@ function enviarPedido(items, cli, com){
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function dinero(n){n=Math.round(n*100)/100;const e=Math.floor(Math.abs(n)),d=Math.round((Math.abs(n)-e)*100);return (n<0?'-':'')+'$'+String(e).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(d?','+String(d).padStart(2,'0'):'')}
-function img(id,w){ if(!id) return ''; if(/^https?:/.test(id)) return id; return 'https://lh3.googleusercontent.com/d/'+id+'=w'+(w||800); }
+function chica(u){ return /\/imagenes\/[^\/]+\.jpg$/.test(u) && !/-s\.jpg$/.test(u) ? u.replace(/\.jpg$/,'-s.jpg') : ''; }
+function img(id,w){ if(!id) return ''; if(/^https?:/.test(id)) return ((w||800)<=500 && chica(id)) || id; return 'https://lh3.googleusercontent.com/d/'+id+'=w'+(w||800); }
 function esVideo(u){ return /\.(mp4|webm)(\?|#|$)/i.test(String(u||'')); }
 function portada(p){ return p.imagenes.find(x=>!esVideo(x)) || p.imagenes[0]; }
 function imgTag(id,w,alt,controles){
   if(!id) return '<div class="noimg">N</div>';
   if(esVideo(id)) return '<video src="'+esc(id)+'" muted loop autoplay playsinline preload="metadata"'+(controles?' controls':'')+'></video>';
-  const fb = /^https?:/.test(id)?'':'https://drive.google.com/thumbnail?id='+id+'&sz=w'+(w||800);
+  const fb = /^https?:/.test(id) ? ((w||800)<=500 && chica(id) ? id : '') : 'https://drive.google.com/thumbnail?id='+id+'&sz=w'+(w||800);
   return '<img loading="lazy" src="'+img(id,w)+'" alt="'+esc(alt||'')+'"'+(fb?' onerror="this.onerror=null;this.src=\''+fb+'\'"':'')+'>';
 }
 function desde(p){ let m=Infinity; p.variantes.forEach(v=>Object.values(v.precios).forEach(x=>{if(x<m)m=x})); return m; }
