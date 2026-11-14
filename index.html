@@ -18,6 +18,8 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<!-- Estadísticas de visitas: https://novy3d.goatcounter.com -->
+<script data-goatcounter="https://novy3d.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -231,6 +233,11 @@ function iniciar(d){
   if (!$('modal').classList.contains('on')) abrirDesdeLink();
 }
 
+// ───────── Estadísticas (GoatCounter, solo en la página de GitHub)
+function evento(ruta, titulo){
+  try { const gc = window.goatcounter; if (gc && gc.count) gc.count({path: ruta, title: titulo || ruta, event: true}); } catch(e) {}
+}
+
 // ───────── Links directos: …/#nombre-del-producto abre ese producto
 function abrirDesdeLink(){
   const s = decodeURIComponent((location.hash || '').slice(1));
@@ -241,6 +248,7 @@ function ponerHash(slug){ try { history.replaceState(null, '', slug ? '#' + slug
 function linkProducto(p){ return location.origin + location.pathname + '#' + p.slug; }
 function compartir(){
   const p = sel.p, url = linkProducto(p);
+  evento('compartir/' + p.slug, 'Compartido: ' + p.nombre);
   if (navigator.share) { navigator.share({title: p.nombre + ' · ' + NEG.nombre, url: url}).catch(()=>{}); return; }
   const ok = () => toast('Link copiado ✓');
   if (navigator.clipboard) navigator.clipboard.writeText(url).then(ok, () => prompt('Copiá el link:', url));
@@ -330,6 +338,7 @@ function abrirProducto(id, desdeLink){
   $('drawer').classList.remove('on');
   $('ov').classList.add('on'); $('modal').classList.add('on');
   if (p.slug) ponerHash(p.slug);
+  evento('producto/' + (p.slug || p.id), p.nombre + (desdeLink ? ' (desde link)' : ''));
 }
 function precioSel(){
   const v = sel.p.variantes.find(x=>x.id===sel.v);
@@ -393,6 +402,7 @@ function agregar(){
   guardar(); cerrarTodo(); actualizarContador();
   const b=$('cartBtn'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
   toast('Agregado al pedido ✓');
+  evento('agregado/' + (sel.p.slug || sel.p.id), 'Agregado: ' + sel.p.nombre);
 }
 
 // ───────── Carrito
@@ -467,6 +477,7 @@ function enviar(){
     .then(r => {
       enviando = false;
       if (win && !win.closed) { try { win.location.href = r.url; } catch(e) {} }
+      evento('pedido-enviado', 'Pedido enviado');
       carrito = []; guardar(); actualizarContador();
       pintarCarrito({ok:true, numero:r.numero, url:r.url});
     })
@@ -480,6 +491,7 @@ function enviar(){
 function consultaPersonalizada(){
   let t = '¡Hola ' + NEG.nombre + '! 👋 Quiero consultar por un pedido personalizado.';
   if (NEG.minimoPersonalizado > 0) t += '\n(Vi que el mínimo es ' + dinero(NEG.minimoPersonalizado) + ')';
+  evento('consulta-personalizada', 'Consulta personalizada');
   window.open('https://wa.me/' + NEG.whatsapp + '?text=' + encodeURIComponent(t), '_blank');
 }
 function cerrarTodo(sinHash){
