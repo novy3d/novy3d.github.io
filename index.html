@@ -128,6 +128,8 @@
   .opt{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--card);font-size:14px;text-align:left}
   .opt small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
   .opt.on{border-color:var(--red3);background:rgba(163,18,26,.18)}
+  .opt:disabled{opacity:.45;cursor:not-allowed}
+  .opt:disabled small{color:var(--warn)}
   .inp{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
   .inp:focus{border-color:var(--red2)}
   .chk{display:flex;align-items:center;gap:9px;cursor:pointer}
@@ -329,11 +331,26 @@ function setCat(c){filtroCat=c;filtroSub='';render()}
 function setSub(s){filtroSub=s;render()}
 
 // ───────── Detalle de producto
+// ───────── Stock de filamento (calculado en el servidor)
+function maxVar(v, color){ if (!v || !v.max) return null; if (v.max[color] != null) return v.max[color]; if (v.max[''] != null) return v.max['']; return 0; }
+function maxComp(c, color){ if (!c.max) return null; const k = c.max[color] != null ? c.max[color] : (c.max[''] != null ? c.max[''] : 0); return Math.floor(k / c.cantidad); }
+function varSinStock(v, p){ return !!v.max && (p.colores.length ? p.colores : ['']).every(c => !(maxVar(v,c) > 0)); }
+/** Unidades que se pueden pedir con la selección actual (null = sin control de stock). */
+function maxSel(){
+  const p = sel.p;
+  if (p.tipo === 'combo') { let m = null; p.componentes.forEach((c,i) => { const u = maxComp(c, sel.cols[i]); if (u != null) m = m == null ? u : Math.min(m, u); }); return m; }
+  return maxVar(p.variantes.find(x=>x.id===sel.v), sel.c);
+}
+function enCarritoSel(){ return carrito.filter(i=>i.productoId===sel.p.id && i.varianteId===sel.v && (sel.p.tipo==='combo' ? (i.colores||[]).join('/')===sel.cols.join('/') : i.color===sel.c)).reduce((t,i)=>t+i.cantidad,0); }
+
 function abrirProducto(id, desdeLink){
   const p = PROD[id];
   if (!p) return;
-  sel = {p:p, v:p.variantes[0].id, m:p.materiales[0], c:p.colores[0]||'', perso:false, texto:'', cant:1, foto:0,
-         cols:(p.componentes||[]).map(c=>c.colores[0]||'')};
+  // Arrancar en la primera medida y color que tengan stock
+  const v0 = p.variantes.find(v => !varSinStock(v, p)) || p.variantes[0];
+  const c0 = p.colores.find(c => maxVar(v0, c) == null || maxVar(v0, c) > 0) || p.colores[0] || '';
+  sel = {p:p, v:v0.id, m:p.materiales[0], c:c0, perso:false, texto:'', cant:1, foto:0,
+         cols:(p.componentes||[]).map(c=>(c.colores.find(col => { const u = maxComp(c, col); return u == null || u > 0; }) || c.colores[0] || ''))};
   pintarModal();
   $('drawer').classList.remove('on');
   $('ov').classList.add('on'); $('modal').classList.add('on');
@@ -363,18 +380,19 @@ function pintarModal(){
   if (combo) {
     h += '<div><div class="lbl">Incluye</div>'+p.componentes.map((c,i)=>
       '<div class="comp">'+imgTag(c.imagen,160,c.nombre)+'<div><b>'+(c.cantidad>1?c.cantidad+'× ':'')+esc(c.nombre)+'</b> <span class="note">· '+esc(c.medida)+'</span>'+
-      (c.colores.length>1?'<div class="opts">'+c.colores.map(col=>'<button class="opt '+(col===sel.cols[i]?'on':'')+'" onclick="sel.cols['+i+']=\''+esc(col).replace(/'/g,"\\'")+'\';pintarModal()">'+esc(col)+'</button>').join('')+'</div>'
+      (c.colores.length>1?'<div class="opts">'+c.colores.map(col=>{ const u = maxComp(c,col); return '<button class="opt '+(col===sel.cols[i]?'on':'')+'" '+(u===0?'disabled title="Sin stock"':'')+' onclick="sel.cols['+i+']=\''+esc(col).replace(/'/g,"\\'")+'\';sel.cant=1;pintarModal()">'+esc(col)+(u===0?'<small>sin stock</small>':'')+'</button>'; }).join('')+'</div>'
         :(c.colores.length?'<div class="note">'+esc(c.colores[0])+'</div>':''))+
       '</div></div>').join('')+'</div>';
   } else {
     h += '<div><div class="lbl">Medida</div><div class="opts">'+p.variantes.map(v=>{
           const l = v.lista && v.lista[sel.m];
-          return '<button class="opt '+(v.id===sel.v?'on':'')+'" onclick="sel.v=\''+v.id+'\';pintarModal()">'+esc(v.medida)+'<small>'+(l?'<s>'+dinero(l)+'</s> ':'')+dinero(v.precios[sel.m])+'</small></button>';
+          const ss = varSinStock(v, p);
+          return '<button class="opt '+(v.id===sel.v?'on':'')+'" '+(ss?'disabled title="Sin stock"':'')+' onclick="sel.v=\''+v.id+'\';elegirColorDisponible();sel.cant=1;pintarModal()">'+esc(v.medida)+'<small>'+(ss?'sin stock':(l?'<s>'+dinero(l)+'</s> ':'')+dinero(v.precios[sel.m]))+'</small></button>';
         }).join('')+'</div></div>';
     if (p.materiales.length>1) h += '<div><div class="lbl">Material</div><div class="opts">'+p.materiales.map(m=>
           '<button class="opt '+(m===sel.m?'on':'')+'" onclick="sel.m=\''+esc(m)+'\';pintarModal()">'+esc(m)+'</button>').join('')+'</div></div>';
-    if (p.colores.length) h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>
-          '<button class="opt '+(c===sel.c?'on':'')+'" onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';pintarModal()">'+esc(c)+'</button>').join('')+'</div></div>';
+    if (p.colores.length) { const vs = p.variantes.find(x=>x.id===sel.v); h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>{ const u = maxVar(vs, c);
+          return '<button class="opt '+(c===sel.c?'on':'')+'" '+(u===0?'disabled title="Sin stock en esta medida"':'')+' onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';sel.cant=1;pintarModal()">'+esc(c)+(u===0?'<small>sin stock</small>':'')+'</button>'; }).join('')+'</div></div>'; }
     if (p.personalizable) {
       h += '<div><label class="chk"><input type="checkbox" '+(sel.perso?'checked':'')+' onchange="sel.perso=this.checked;pintarModal()"> Personalizar'+
            (p.recargoPersonalizacion?' <span class="note">(+'+dinero(p.recargoPersonalizacion)+')</span>':'')+'</label>';
@@ -386,13 +404,23 @@ function pintarModal(){
   h += '<div class="price">'+(li?'<s>'+dinero(li)+'</s>':'')+dinero(pr)+(li?'<span class="ahorro">Ahorrás '+dinero(li-pr)+'</span>':'')+'</div>';
   if (p.estado==='A pedido') h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
   if (window.API_URL && p.slug) h += '<button class="share" onclick="compartir()">🔗 Compartir este producto</button>';
-  h += '<div class="buy"><div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);pintarModal()">−</button><span>'+sel.cant+'</span><button onclick="sel.cant=Math.min(999,sel.cant+1);pintarModal()">+</button></div>'+
-       '<button class="big" '+(agot?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':'Agregar al pedido')+'</span><span>'+dinero(pr*sel.cant)+'</span></button></div>';
+  const mx = maxSel(), disp = mx == null ? 999 : Math.max(0, mx - enCarritoSel());
+  if (sel.cant > disp && disp > 0) sel.cant = disp;
+  const sinSt = !agot && disp < 1;
+  if (mx != null && disp > 0 && disp <= 5) h += '<p class="note" style="color:var(--warn)">Quedan pocas: podés pedir hasta '+disp+'.</p>';
+  h += '<div class="buy"><div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);pintarModal()">−</button><span>'+sel.cant+'</span><button onclick="sel.cant=Math.min('+Math.max(1,disp)+',sel.cant+1);pintarModal()">+</button></div>'+
+       '<button class="big" '+(agot||sinSt?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':(sinSt?(mx>0?'Ya tenés todas en el pedido':'Sin stock'):'Agregar al pedido'))+'</span><span>'+dinero(pr*sel.cant)+'</span></button></div>';
   h += '</div>';
   $('modal').innerHTML = h;
 }
+function elegirColorDisponible(){
+  const v = sel.p.variantes.find(x=>x.id===sel.v);
+  if (sel.c && maxVar(v, sel.c) === 0) { const c = sel.p.colores.find(col => maxVar(v, col) > 0); if (c) sel.c = c; }
+}
 function agregar(){
   if (sel.perso && !sel.texto.trim()) { toast('Contanos qué querés personalizar'); return; }
+  const mx = maxSel();
+  if (mx != null && sel.cant + enCarritoSel() > mx) { toast('No nos alcanza el filamento para tantas: podés pedir hasta ' + Math.max(0, mx - enCarritoSel())); return; }
   const perso = sel.perso ? sel.texto.trim() : '';
   const combo = sel.p.tipo==='combo';
   const key = [sel.p.id, sel.v, sel.m, sel.c, perso, combo?sel.cols.join('/'):''].join('|');
@@ -461,7 +489,16 @@ function pintarCarrito(estado){
   d.innerHTML = h;
 }
 function sessionStorageGet(k){try{return localStorage.getItem(k)||''}catch(e){return''}}
-function cant(ix,d){ carrito[ix].cantidad=Math.max(1,Math.min(999,carrito[ix].cantidad+d)); guardar(); actualizarContador(); pintarCarrito(); }
+function cant(ix,d){
+  if (d > 0) {   // no pasarse del stock de filamento
+    const it = carrito[ix], p = PROD[it.productoId], v = p.variantes.find(x=>x.id===it.varianteId);
+    let mx = null;
+    if (p.tipo === 'combo') p.componentes.forEach((c,k) => { const u = maxComp(c, (it.colores||[])[k]); if (u != null) mx = mx == null ? u : Math.min(mx, u); });
+    else mx = maxVar(v, it.color);
+    const mismo = carrito.filter(o => o.productoId===it.productoId && o.varianteId===it.varianteId && (p.tipo==='combo' ? (o.colores||[]).join('/')===(it.colores||[]).join('/') : o.color===it.color)).reduce((t,o)=>t+o.cantidad,0);
+    if (mx != null && mismo + d > mx) { toast('No nos alcanza el filamento para más unidades'); return; }
+  }
+  carrito[ix].cantidad=Math.max(1,Math.min(999,carrito[ix].cantidad+d)); guardar(); actualizarContador(); pintarCarrito(); }
 function quitar(ix){ carrito.splice(ix,1); guardar(); actualizarContador(); pintarCarrito(); }
 
 function enviar(){
