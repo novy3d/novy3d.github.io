@@ -123,8 +123,22 @@
   .gal .main{aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--bg)}
   .gal .main img,.gal .main video{width:100%;height:100%;object-fit:cover;display:block}
   .thumbs{display:flex;gap:8px;margin-top:10px;overflow-x:auto}
-  .thumbs img,.thumbs video{width:62px;height:62px;object-fit:cover;border-radius:8px;opacity:.55;border:2px solid transparent;cursor:pointer}
-  .thumbs .on{opacity:1;border-color:var(--red2)}
+  .thumbs .th{position:relative;flex:none;width:62px;height:62px;padding:0;border-radius:8px;overflow:hidden;opacity:.55;border:2px solid transparent;cursor:pointer;background:var(--bg)}
+  .thumbs .th img,.thumbs .th video{width:100%;height:100%;object-fit:cover;display:block}
+  .thumbs .th.on{opacity:1;border-color:var(--red2)}
+  .play{position:absolute;display:grid;place-items:center;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;pointer-events:none;
+        width:30px;height:30px;font-size:13px;right:8px;bottom:8px;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+  .thumbs .play{width:22px;height:22px;font-size:10px;right:50%;bottom:50%;transform:translate(50%,50%)}
+  .badge.nv{background:#1F8A5B;color:#fff}
+  .desc.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .vermas{color:var(--red3);font-weight:600;font-size:14px;align-self:flex-start;margin-top:-6px}
+  .pfil{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .pfil span{color:var(--mut);font-size:13px}
+  .pfil input{width:120px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;outline:none}
+  .pfil input:focus{border-color:var(--red2)}
+  .pfil button{color:var(--mut);font-size:13px;text-decoration:underline}
+  .inp.bad{border-color:var(--red3);box-shadow:0 0 0 2px rgba(200,32,42,.25)}
+  .req{font-size:12px;color:var(--mut);margin-top:-4px}
   .det{padding:26px 24px 22px 8px;display:flex;flex-direction:column;gap:14px}
   .det h2{font-size:24px;line-height:1.15;padding-right:36px}
   .det .desc{color:var(--mut);line-height:1.5;white-space:pre-line}
@@ -139,7 +153,8 @@
   .inp:focus{border-color:var(--red2)}
   .chk{display:flex;align-items:center;gap:9px;cursor:pointer}
   .chk input{accent-color:var(--red3);width:18px;height:18px}
-  .buy{display:flex;align-items:center;gap:12px;margin-top:auto;padding-top:6px}
+  .buy{display:flex;align-items:center;gap:12px;margin-top:auto;position:sticky;bottom:0;z-index:3;background:var(--bg2);
+       padding:12px 0 calc(6px + env(safe-area-inset-bottom));box-shadow:0 -14px 14px -6px var(--bg2)}
   .qty{display:flex;align-items:center;background:var(--card);border-radius:10px;border:1px solid var(--line)}
   .qty button{width:36px;height:40px;font-size:18px}
   .qty span{min-width:28px;text-align:center;font-weight:600}
@@ -198,9 +213,14 @@
     <button class="custom" onclick="consultaPersonalizada()">✏️ ¿Querés algo personalizado? Consultanos</button>
   </div>
   <input class="search" id="q" placeholder="Buscar productos…" oninput="render()">
+  <div class="pfil"><span>💲 Precio</span>
+    <input id="pmin" type="number" inputmode="numeric" min="0" placeholder="Desde $" oninput="render()">
+    <input id="pmax" type="number" inputmode="numeric" min="0" placeholder="Hasta $" oninput="render()">
+    <button id="plimpiar" style="display:none" onclick="$('pmin').value='';$('pmax').value='';render()">Limpiar</button></div>
   <div class="chips" id="cats"></div>
   <div class="chips sub" id="subs"></div>
   <div id="dest"></div>
+  <div id="nov"></div>
   <div class="grid" id="grid"><div class="empty">Cargando catálogo…</div></div>
   <footer id="foot"></footer>
 </main>
@@ -268,7 +288,7 @@ function enviarPedido(items, cli, com, extra){
     return fetch(window.API_URL, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain;charset=utf-8'},
-      body: JSON.stringify({accion: 'pedido', items: items, cliente: cli, comentario: com, hp: extra.hp, t: extra.t})
+      body: JSON.stringify({accion: 'pedido', items: items, cliente: cli, comentario: com, hp: extra.hp, t: extra.t, telefono: extra.telefono})
     }).then(r => r.json()).then(r => { if (!r.ok) throw new Error(r.error || 'Error'); return r; });
   }
   return new Promise((ok, ko) => google.script.run.withSuccessHandler(ok).withFailureHandler(ko).registrarPedido(items, cli, com, extra));
@@ -303,15 +323,20 @@ function cargar(){try{const c=JSON.parse(localStorage.getItem('novy_carrito')||'
 function card(p, dest){
   const b = p.estado==='A pedido' ? 'pedido' : p.estado, d = desde(p);
   const tags = '<div class="tags"><span class="badge '+b+'">'+esc(p.estado)+'</span>'+
-    (p.oferta?'<span class="badge of">-'+p.oferta+'%</span>':'')+(p.tipo==='combo'?'<span class="badge cb">🎁 Combo</span>':'')+'</div>';
+    (p.nuevo?'<span class="badge nv">🆕 Nuevo</span>':'')+(p.oferta?'<span class="badge of">-'+p.oferta+'%</span>':'')+(p.tipo==='combo'?'<span class="badge cb">🎁 Combo</span>':'')+'</div>';
   return '<button class="card '+(p.estado==='Agotado'?'out ':'')+(p.destacado?'dest':'')+'" onclick="abrirProducto(\''+p.id+'\')">'+
-    '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+tags+(p.destacado?'<span class="star" title="Destacado">⭐</span>':'')+'</div>'+
+    '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+tags+(p.destacado?'<span class="star" title="Destacado">⭐</span>':'')+(esVideo(p.imagenes[0])?'<span class="play" title="Video">▶</span>':'')+'</div>'+
     '<div class="info"><span class="sub">'+esc(p.subcategoria||p.categoria)+'</span><h3>'+esc(p.nombre)+'</h3>'+
     '<div class="pr">'+(p.variantes.length>1?'<small>desde</small>':'')+(d.lista?'<s>'+dinero(d.lista)+'</s>':'')+dinero(d.precio)+'</div>'+
     (mayDesde(p)!=null?'<div class="mayc">💼 Desde '+MAY().minimo+' u.: '+dinero(mayDesde(p))+' c/u</div>':'')+'</div></button>';
 }
 function render(){
   const q = $('q').value.trim().toLowerCase();
+  const pmin = parseFloat($('pmin').value), pmax = parseFloat($('pmax').value);
+  const hayPrecio = !isNaN(pmin) || !isNaN(pmax);
+  $('plimpiar').style.display = hayPrecio ? '' : 'none';
+  // Un producto entra si ALGUNA de sus medidas tiene precio minorista (con oferta) dentro del rango
+  const enRango = p => !hayPrecio || p.variantes.some(v => Object.keys(v.precios).some(k => (isNaN(pmin) || v.precios[k] >= pmin) && (isNaN(pmax) || v.precios[k] <= pmax)));
   const hayOfertas = DATA.productos.some(p=>p.oferta);
   const cats = [...new Set(DATA.productos.map(p=>p.categoria))];
   $('cats').innerHTML = ['<button class="chip '+(!filtroCat?'on':'')+'" onclick="setCat(\'\')">Todo</button>']
@@ -324,11 +349,14 @@ function render(){
 
   // Sección de destacados (solo en la vista inicial, sin filtros ni búsqueda)
   const dest = DATA.productos.filter(p=>p.destacado);
-  const verDest = !filtroCat && !q && dest.length > 0;
-  $('dest').innerHTML = verDest ? '<section class="destsec"><h2><span>⭐</span> Destacados</h2><div class="drow">'+dest.map(p=>card(p,true)).join('')+'</div></section><div class="sectit">Todos los productos</div>' : '';
+  const inicial = !filtroCat && !q && !hayPrecio;
+  const nuevos = DATA.productos.filter(p=>p.nuevo).sort((a,b)=>String(b.nuevo).localeCompare(String(a.nuevo)));
+  $('dest').innerHTML = inicial && dest.length ? '<section class="destsec"><h2><span>⭐</span> Destacados</h2><div class="drow">'+dest.map(p=>card(p,true)).join('')+'</div></section>' : '';
+  $('nov').innerHTML = inicial && nuevos.length ? '<section class="destsec"><h2><span>🆕</span> Novedades</h2><div class="drow">'+nuevos.map(p=>card(p,true)).join('')+'</div></section>' : '';
+  if (inicial && (dest.length || nuevos.length)) $('nov').innerHTML += '<div class="sectit">Todos los productos</div>';
 
   const lista = DATA.productos.filter(p =>
-    (!filtroCat || (filtroCat==='__of' ? p.oferta : p.categoria===filtroCat)) && (!filtroSub || p.subcategoria===filtroSub) &&
+    (!filtroCat || (filtroCat==='__of' ? p.oferta : p.categoria===filtroCat)) && (!filtroSub || p.subcategoria===filtroSub) && enRango(p) &&
     (!q || (p.nombre+' '+p.descripcion+' '+p.categoria+' '+p.subcategoria+' '+(p.componentes||[]).map(c=>c.nombre).join(' ')).toLowerCase().includes(q)));
   $('grid').innerHTML = lista.length ? lista.map(p=>card(p)).join('') : '<div class="empty">No encontramos productos con ese filtro.</div>';
   actualizarContador();
@@ -377,11 +405,12 @@ function pintarModal(){
   const fotos = p.imagenes.length ? p.imagenes : [''];
   let h = '<button class="x" onclick="cerrarTodo()">×</button>';
   h += '<div class="gal"><div class="main">'+imgTag(fotos[sel.foto],1000,p.nombre,true)+'</div>';
-  if (fotos.length>1) h += '<div class="thumbs">'+fotos.map((f,i)=>esVideo(f)?'<video src="'+esc(f)+'#t=0.5" muted playsinline preload="metadata" class="'+(i===sel.foto?'on':'')+'" onclick="sel.foto='+i+';pintarModal()"></video>':'<img src="'+img(f,160)+'" class="'+(i===sel.foto?'on':'')+'" onclick="sel.foto='+i+';pintarModal()">').join('')+'</div>';
+  if (fotos.length>1) h += '<div class="thumbs">'+fotos.map((f,i)=>'<button class="th '+(i===sel.foto?'on':'')+'" onclick="sel.foto='+i+';pintarModal()">'+
+      (esVideo(f)?'<video src="'+esc(f)+'#t=0.5" muted playsinline preload="metadata"></video><span class="play">▶</span>':'<img src="'+img(f,160)+'" alt="">')+'</button>').join('')+'</div>';
   h += '</div><div class="det">';
-  h += '<div><div class="note">'+(p.destacado?'⭐ Destacado · ':'')+(combo?'🎁 Combo · ':'')+esc(p.categoria)+(p.subcategoria?' · '+esc(p.subcategoria):'')+'</div><h2>'+esc(p.nombre)+'</h2></div>';
+  h += '<div><div class="note">'+(p.nuevo?'🆕 Nuevo · ':'')+(p.destacado?'⭐ Destacado · ':'')+(combo?'🎁 Combo · ':'')+esc(p.categoria)+(p.subcategoria?' · '+esc(p.subcategoria):'')+'</div><h2>'+esc(p.nombre)+'</h2></div>';
   if (p.oferta) h += '<div class="ofbox">🔥 Oferta -'+p.oferta+'%'+(p.ofertaHasta?' · hasta el '+fechaCorta(p.ofertaHasta):'')+'</div>';
-  if (p.descripcion) h += '<p class="desc">'+esc(p.descripcion)+'</p>';
+  if (p.descripcion) h += '<p class="desc '+(sel.desc?'':'clamp')+'" id="desc">'+esc(p.descripcion)+'</p><button class="vermas" id="vermas" onclick="sel.desc=!sel.desc;pintarModal()">'+(sel.desc?'Ver menos':'Ver más')+'</button>';
 
   if (combo) {
     h += '<div><div class="lbl">Incluye</div>'+p.componentes.map((c,i)=>
@@ -426,6 +455,13 @@ function pintarModal(){
        '<button class="big" '+(agot||sinSt?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':(sinSt?(mx>0?'Ya tenés todas en el pedido':'Sin stock'):'Agregar al pedido'))+'</span><span>'+dinero(pr*sel.cant)+'</span></button></div>';
   h += '</div>';
   $('modal').innerHTML = h;
+  // "Ver más" solo si la descripción no entra en 4 renglones (se compara la altura recortada con la completa)
+  const d = $('desc');
+  if (d && !sel.desc) {
+    const corta = d.getBoundingClientRect().height;
+    d.classList.remove('clamp'); const completa = d.getBoundingClientRect().height; d.classList.add('clamp');
+    if (completa <= corta + 2) $('vermas').style.display = 'none';
+  }
 }
 function elegirColorDisponible(){
   const v = sel.p.variantes.find(x=>x.id===sel.v);
@@ -519,7 +555,9 @@ function pintarCarrito(estado){
   faltanParaMayorista().forEach(f => { h += '<p class="note maynote">💼 Sumá <b>'+f.faltan+'</b> más de <b>'+esc(f.p.nombre)+'</b> (cualquier medida o color) para precio mayorista: desde '+dinero(f.desde)+' c/u.</p>'; });
   if (t.perso) h += '<p class="note">Incluye personalización: el precio final te lo confirmamos por WhatsApp.</p>';
   if (t.faltaMin) h += '<p class="warn">Los pedidos personalizados tienen un mínimo de '+dinero(NEG.minimoPersonalizado)+'.</p>';
-  h += '<input class="inp" id="cli" maxlength="80" placeholder="Tu nombre (opcional)" value="'+esc(sessionStorageGet('novy_cli'))+'">';
+  h += '<input class="inp" id="cli" maxlength="80" autocomplete="name" placeholder="Tu nombre *" value="'+esc(sessionStorageGet('novy_cli'))+'" oninput="this.classList.remove(\'bad\')">';
+  h += '<input class="inp" id="tel" type="tel" maxlength="30" autocomplete="tel" inputmode="tel" placeholder="Tu WhatsApp o teléfono, con código de área *" value="'+esc(sessionStorageGet('novy_tel'))+'" oninput="this.classList.remove(\'bad\')">';
+  h += '<div class="req">* Obligatorios: los usamos solo para contactarte por tu pedido.</div>';
   h += '<textarea class="inp" id="com" rows="2" maxlength="500" placeholder="Comentario: envío, retiro, fecha… (opcional)"></textarea>';
   h += '<input class="hp" id="web" name="web" tabindex="-1" autocomplete="off" aria-hidden="true">';
   h += '<button class="big wa" id="enviar" '+(t.faltaMin?'disabled':'')+' onclick="enviar()"><span>Enviar pedido por WhatsApp</span><span>→</span></button>';
@@ -542,14 +580,17 @@ function quitar(ix){ carrito.splice(ix,1); guardar(); actualizarContador(); pint
 
 function enviar(){
   if (enviando || !carrito.length) return;
+  const cli = $('cli').value.trim(), tel = $('tel').value.trim(), com = $('com').value;
+  const dig = tel.replace(/\D/g, '');
+  if (cli.length < 2) { $('cli').classList.add('bad'); $('cli').focus(); toast('Completá tu nombre'); return; }
+  if (dig.length < 8 || dig.length > 15) { $('tel').classList.add('bad'); $('tel').focus(); toast('Completá tu WhatsApp o teléfono con código de área'); return; }
   enviando = true;
-  const cli = $('cli').value, com = $('com').value;
-  try{localStorage.setItem('novy_cli',cli)}catch(e){}
+  try{localStorage.setItem('novy_cli',cli);localStorage.setItem('novy_tel',tel)}catch(e){}
   const btn = $('enviar'); btn.disabled = true; btn.firstChild.textContent = 'Registrando pedido…';
   // Se abre la pestaña ya (con el clic del usuario) para que el navegador no la bloquee.
   let win = null; try { win = window.open('', '_blank'); } catch(e) {}
   const items = carrito.map(i=>({productoId:i.productoId, varianteId:i.varianteId, material:i.material, color:i.color, cantidad:i.cantidad, personalizacion:i.personalizacion, colores:i.colores}));
-  enviarPedido(items, cli, com, {hp: ($('web')||{}).value || '', t: Date.now() - CARGA})
+  enviarPedido(items, cli, com, {hp: ($('web')||{}).value || '', t: Date.now() - CARGA, telefono: tel})
     .then(r => {
       enviando = false;
       if (win && !win.closed) { try { win.location.href = r.url; } catch(e) {} }
