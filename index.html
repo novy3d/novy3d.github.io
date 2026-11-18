@@ -90,6 +90,11 @@
   .card.dest{border-color:rgba(229,169,43,.55);box-shadow:0 0 0 1px rgba(229,169,43,.25),0 6px 22px rgba(229,169,43,.12)}
   .pr s,.price s{color:var(--mut);font-weight:500;font-size:.8em;margin-right:6px}
   .ahorro{color:#7EE0A6;font-size:13px;font-weight:600}
+  .maytag{color:#9CCBFF;font-weight:600}
+  .row.may{color:#9CCBFF;font-weight:600;font-size:14px}
+  .maynote{background:rgba(91,141,239,.12);border:1px solid rgba(91,141,239,.35);border-radius:10px;padding:8px 10px;color:var(--txt)}
+  .card .mayc{font-size:12px;color:#9CCBFF;font-weight:600;margin-top:2px}
+  .maybox{background:rgba(91,141,239,.12);border:1px solid rgba(91,141,239,.35);border-radius:10px;padding:8px 12px;font-size:14px}
   .destsec{margin:18px 0 6px}
   .destsec h2{font-family:'Archivo Black',sans-serif;font-size:20px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
   .destsec h2 span{color:#FFD866}
@@ -302,7 +307,8 @@ function card(p, dest){
   return '<button class="card '+(p.estado==='Agotado'?'out ':'')+(p.destacado?'dest':'')+'" onclick="abrirProducto(\''+p.id+'\')">'+
     '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+tags+(p.destacado?'<span class="star" title="Destacado">⭐</span>':'')+'</div>'+
     '<div class="info"><span class="sub">'+esc(p.subcategoria||p.categoria)+'</span><h3>'+esc(p.nombre)+'</h3>'+
-    '<div class="pr">'+(p.variantes.length>1?'<small>desde</small>':'')+(d.lista?'<s>'+dinero(d.lista)+'</s>':'')+dinero(d.precio)+'</div></div></button>';
+    '<div class="pr">'+(p.variantes.length>1?'<small>desde</small>':'')+(d.lista?'<s>'+dinero(d.lista)+'</s>':'')+dinero(d.precio)+'</div>'+
+    (mayDesde(p)!=null?'<div class="mayc">💼 Desde '+MAY().minimo+' u.: '+dinero(mayDesde(p))+' c/u</div>':'')+'</div></button>';
 }
 function render(){
   const q = $('q').value.trim().toLowerCase();
@@ -402,6 +408,14 @@ function pintarModal(){
   }
   const pr = precioSel(), li = listaSel();
   h += '<div class="price">'+(li?'<s>'+dinero(li)+'</s>':'')+dinero(pr)+(li?'<span class="ahorro">Ahorrás '+dinero(li-pr)+'</span>':'')+'</div>';
+  if (!combo && MAY().activo) {
+    const vs = p.variantes.find(x=>x.id===sel.v), pm = vs && vs.may && vs.may[sel.m];
+    if (pm != null && pm < vs.precios[sel.m]) {
+      const u = unidadesProducto(p.id);
+      h += '<div class="maybox">💼 <b>Precio mayorista: '+dinero(pm + (sel.perso && p.personalizable ? p.recargoPersonalizacion : 0))+' c/u</b> desde '+MAY().minimo+' u. de este producto (podés combinar medidas y colores)'+
+           (u ? '<br><span class="note">Ya tenés '+u+' en el pedido'+(u>=MAY().minimo?' ✓':': faltan '+(MAY().minimo-u))+'</span>' : '')+'</div>';
+    }
+  }
   if (p.estado==='A pedido') h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
   if (window.API_URL && p.slug) h += '<button class="share" onclick="compartir()">🔗 Compartir este producto</button>';
   const mx = maxSel(), disp = mx == null ? 999 : Math.max(0, mx - enCarritoSel());
@@ -434,16 +448,41 @@ function agregar(){
 }
 
 // ───────── Carrito
+// ───────── Precio mayorista: desde N unidades del MISMO producto (sumando medidas y colores)
+function MAY(){ return NEG.mayorista || {activo:false, minimo:10}; }
+function unidadesProducto(pid){ return carrito.filter(i=>i.productoId===pid).reduce((t,i)=>t+i.cantidad,0); }
+/** Precio mayorista más bajo del producto (para "Desde 10 u.: $X c/u"), o null. */
+function mayDesde(p){
+  if (!MAY().activo || p.tipo==='combo') return null;
+  let m = null;
+  p.variantes.forEach(v=>Object.keys(v.may||{}).forEach(k=>{ if (v.may[k] < v.precios[k] && (m==null || v.may[k] < m)) m = v.may[k]; }));
+  return m;
+}
 function linea(i){
   const p = PROD[i.productoId], v = p.variantes.find(x=>x.id===i.varianteId);
-  const unit = v.precios[i.material] + (i.personalizacion ? p.recargoPersonalizacion : 0);
-  return {p:p, v:v, unit:unit, importe:unit*i.cantidad};
+  const recargo = i.personalizacion ? p.recargoPersonalizacion : 0;
+  const lista = v.precios[i.material] + recargo;
+  let unit = lista, may = false;
+  const pm = v.may && v.may[i.material];
+  // No se acumula con la oferta: se cobra el menor
+  if (MAY().activo && p.tipo!=='combo' && pm != null && pm < v.precios[i.material] && unidadesProducto(p.id) >= MAY().minimo) { unit = pm + recargo; may = true; }
+  return {p:p, v:v, unit:unit, lista:lista, may:may, importe:unit*i.cantidad, ahorro:(lista-unit)*i.cantidad};
 }
 function totales(){
-  let sub=0, perso=false;
-  carrito.forEach(i=>{const l=linea(i); sub+=l.importe; if(i.personalizacion) perso=true;});
-  const desc = (NEG.mayoristaMin>0 && NEG.mayoristaPct>0 && sub>=NEG.mayoristaMin) ? Math.round(sub*NEG.mayoristaPct)/100 : 0;
-  return {sub:sub, desc:desc, total:sub-desc, perso:perso, faltaMin: perso && NEG.minimoPersonalizado>0 && sub<NEG.minimoPersonalizado};
+  let sub=0, ahorro=0, perso=false;
+  carrito.forEach(i=>{const l=linea(i); sub+=l.importe; ahorro+=l.ahorro; if(i.personalizacion) perso=true;});
+  return {sub:sub, ahorro:ahorro, total:sub, perso:perso, faltaMin: perso && NEG.minimoPersonalizado>0 && sub<NEG.minimoPersonalizado};
+}
+/** Productos del carrito a los que les faltan pocas unidades para el mayorista. */
+function faltanParaMayorista(){
+  if (!MAY().activo) return [];
+  const min = MAY().minimo, vistos = {}, res = [];
+  carrito.forEach(i=>{
+    if (vistos[i.productoId]) return; vistos[i.productoId] = true;
+    const p = PROD[i.productoId], u = unidadesProducto(p.id), d = mayDesde(p);
+    if (d != null && u < min && u >= Math.ceil(min/2)) res.push({p:p, faltan:min-u, desde:d});
+  });
+  return res;
 }
 function actualizarContador(){ $('cartN').textContent = carrito.reduce((a,i)=>a+i.cantidad,0); }
 function abrirCarrito(){ pintarCarrito(); $('ov').classList.add('on'); $('drawer').classList.add('on'); }
@@ -469,15 +508,15 @@ function pintarCarrito(estado){
     return '<div class="it">'+imgTag(portada(l.p),160,l.p.nombre)+
       '<div><h4>'+esc(l.p.nombre)+'</h4><div class="meta">'+esc(meta)+'</div>'+
       (i.personalizacion?'<div class="meta">✏️ '+esc(i.personalizacion)+'</div>':'')+
-      '<div class="meta">'+dinero(l.unit)+' c/u</div></div>'+
+      '<div class="meta">'+(l.may?'<s>'+dinero(l.lista)+'</s> ':'')+dinero(l.unit)+' c/u'+(l.may?' · <span class="maytag">💼 mayorista</span>':'')+'</div></div>'+
       '<div class="r"><b>'+dinero(l.importe)+'</b><div class="qty"><button onclick="cant('+ix+',-1)">−</button><span>'+i.cantidad+'</span><button onclick="cant('+ix+',1)">+</button></div>'+
       '<button class="rm" onclick="quitar('+ix+')">Quitar</button></div></div>';
   }).join('') + '</div>';
   const t = totales();
   h += '<div class="df">';
-  if (t.desc) h += '<div class="row note"><span>Subtotal</span><span>'+dinero(t.sub)+'</span></div><div class="row note"><span>Descuento mayorista</span><span>−'+dinero(t.desc)+'</span></div>';
+  if (t.ahorro > 0) h += '<div class="row may"><span>💼 Ahorro por precio mayorista</span><span>−'+dinero(t.ahorro)+'</span></div>';
   h += '<div class="row tot"><span>Total</span><span>'+dinero(t.total)+'</span></div>';
-  if (!t.desc && NEG.mayoristaMin>0 && NEG.mayoristaPct>0) h += '<p class="note">Llegando a '+dinero(NEG.mayoristaMin)+' tenés '+NEG.mayoristaPct+'% de descuento.</p>';
+  faltanParaMayorista().forEach(f => { h += '<p class="note maynote">💼 Sumá <b>'+f.faltan+'</b> más de <b>'+esc(f.p.nombre)+'</b> (cualquier medida o color) para precio mayorista: desde '+dinero(f.desde)+' c/u.</p>'; });
   if (t.perso) h += '<p class="note">Incluye personalización: el precio final te lo confirmamos por WhatsApp.</p>';
   if (t.faltaMin) h += '<p class="warn">Los pedidos personalizados tienen un mínimo de '+dinero(NEG.minimoPersonalizado)+'.</p>';
   h += '<input class="inp" id="cli" maxlength="80" placeholder="Tu nombre (opcional)" value="'+esc(sessionStorageGet('novy_cli'))+'">';
