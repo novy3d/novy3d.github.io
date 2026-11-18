@@ -71,7 +71,7 @@
   .card .ph{aspect-ratio:1;background:var(--bg2);position:relative;overflow:hidden}
   .card .ph img,.card .ph video{width:100%;height:100%;object-fit:cover;display:block}
   .badge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(39,44,54,.85)}
-  .badge.Disponible{color:#7EE0A6}.badge.Agotado{color:#fff;background:#6b6f78}.badge.pedido{color:var(--warn)}
+  .badge.Disponible,.badge.inm{color:#7EE0A6}.badge.Agotado{color:#fff;background:#6b6f78}.badge.pedido{color:var(--warn)}
   .card.out .ph img,.card.out .ph video{filter:grayscale(1) opacity(.55)}
   .card .info{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px;flex:1}
   .card .sub{font-size:12px;color:var(--mut)}
@@ -200,6 +200,8 @@
     .grid{grid-template-columns:repeat(2,1fr);gap:10px}
     .card h3{font-size:14px}.card .pr{font-size:15px}
   }
+  .inmnote{color:#7EE0A6}.opt small.inm{color:#7EE0A6}.meta.inm{color:#7EE0A6}
+  .pfil select{background:var(--card,#1c1f26);color:inherit;border:1px solid #3a3f4a;border-radius:10px;padding:8px}
 </style>
 </head>
 <body>
@@ -224,6 +226,8 @@
       <input id="pmin" type="number" inputmode="numeric" min="0" placeholder="Desde $" oninput="render()">
       <input id="pmax" type="number" inputmode="numeric" min="0" placeholder="Hasta $" oninput="render()">
       <button id="plimpiar" style="display:none" onclick="$('pmin').value='';$('pmax').value='';render()">Limpiar</button></div>
+    <div class="pfil"><span>📦 Disponibilidad</span>
+      <select id="fdisp" onchange="render()"><option value="">Todos</option><option value="Entrega inmediata">⚡ Entrega inmediata</option><option value="A pedido">⏱ A pedido</option></select></div>
   </div>
   <div class="chips" id="cats"></div>
   <div class="chips sub" id="subs"></div>
@@ -329,8 +333,8 @@ function cargar(){try{const c=JSON.parse(localStorage.getItem('novy_carrito')||'
 
 // ───────── Listado
 function card(p, dest){
-  const b = p.estado==='A pedido' ? 'pedido' : p.estado, d = desde(p);
-  const tags = '<div class="tags"><span class="badge '+b+'">'+esc(p.estado)+'</span>'+
+  const b = p.estado==='A pedido' ? 'pedido' : (p.estado==='Entrega inmediata' ? 'inm' : p.estado), d = desde(p);
+  const tags = '<div class="tags"><span class="badge '+b+'">'+(b==='inm'?'⚡ ':'')+esc(p.estado)+'</span>'+
     (p.nuevo?'<span class="badge nv">🆕 Nuevo</span>':'')+(p.oferta?'<span class="badge of">-'+p.oferta+'%</span>':'')+(p.tipo==='combo'?'<span class="badge cb">🎁 Combo</span>':'')+'</div>';
   return '<button class="card '+(p.estado==='Agotado'?'out ':'')+(p.destacado?'dest':'')+'" onclick="abrirProducto(\''+p.id+'\')">'+
     '<div class="ph">'+imgTag(p.imagenes[0],500,p.nombre)+tags+(p.destacado?'<span class="star" title="Destacado">⭐</span>':'')+(esVideo(p.imagenes[0])?'<span class="play" title="Video">▶</span>':'')+'</div>'+
@@ -343,7 +347,8 @@ function render(){
   const pmin = parseFloat($('pmin').value), pmax = parseFloat($('pmax').value);
   const hayPrecio = !isNaN(pmin) || !isNaN(pmax);
   $('plimpiar').style.display = hayPrecio ? '' : 'none';
-  const activos = hayPrecio ? 1 : 0;
+  const fdisp = $('fdisp').value;
+  const activos = (hayPrecio ? 1 : 0) + (fdisp ? 1 : 0);
   $('nFil').textContent = activos ? activos : '';
   $('btnFil').classList.toggle('on', !$('filtros').hidden || activos > 0);
   // Un producto entra si ALGUNA de sus medidas tiene precio minorista (con oferta) dentro del rango
@@ -360,14 +365,14 @@ function render(){
 
   // Sección de destacados (solo en la vista inicial, sin filtros ni búsqueda)
   const dest = DATA.productos.filter(p=>p.destacado);
-  const inicial = !filtroCat && !q && !hayPrecio;
+  const inicial = !filtroCat && !q && !hayPrecio && !fdisp;
   const nuevos = DATA.productos.filter(p=>p.nuevo).sort((a,b)=>String(b.nuevo).localeCompare(String(a.nuevo)));
   $('dest').innerHTML = inicial && dest.length ? '<section class="destsec"><h2><span>⭐</span> Destacados</h2><div class="drow">'+dest.map(p=>card(p,true)).join('')+'</div></section>' : '';
   $('nov').innerHTML = inicial && nuevos.length ? '<section class="destsec"><h2><span>🆕</span> Novedades</h2><div class="drow">'+nuevos.map(p=>card(p,true)).join('')+'</div></section>' : '';
   if (inicial && (dest.length || nuevos.length)) $('nov').innerHTML += '<div class="sectit">Todos los productos</div>';
 
   const lista = DATA.productos.filter(p =>
-    (!filtroCat || (filtroCat==='__of' ? p.oferta : p.categoria===filtroCat)) && (!filtroSub || p.subcategoria===filtroSub) && enRango(p) &&
+    (!filtroCat || (filtroCat==='__of' ? p.oferta : p.categoria===filtroCat)) && (!filtroSub || p.subcategoria===filtroSub) && enRango(p) && (!fdisp || p.estado===fdisp) &&
     (!q || (p.nombre+' '+p.descripcion+' '+p.categoria+' '+p.subcategoria+' '+(p.componentes||[]).map(c=>c.nombre).join(' ')).toLowerCase().includes(q)));
   $('grid').innerHTML = lista.length ? lista.map(p=>card(p)).join('') : '<div class="empty">No encontramos productos con ese filtro.</div>';
   actualizarContador();
@@ -380,6 +385,35 @@ function setSub(s){filtroSub=s;render()}
 // ───────── Stock de filamento (calculado en el servidor)
 function maxVar(v, color){ if (!v || !v.max) return null; if (v.max[color] != null) return v.max[color]; if (v.max[''] != null) return v.max['']; return 0; }
 function maxComp(c, color){ if (!c.max) return null; const k = c.max[color] != null ? c.max[color] : (c.max[''] != null ? c.max[''] : 0); return Math.floor(k / c.cantidad); }
+/** Piezas ya impresas (listas para entregar) de una medida y color. */
+function impTot(v){ return v && v.imp ? Object.keys(v.imp).reduce((t,k)=>t+(+v.imp[k]||0),0) : 0; }
+function impVar(v, color, multi){ if (!v || !v.imp) return 0; return +(v.imp[multi ? color : ''] || 0); }
+function impComp(c, color){ return Math.floor(impVar(c, color, c.colores.length > 1) / c.cantidad); }
+/** Unidades impresas disponibles para la selección actual, descontando lo que ya está en el pedido. */
+function impSel(){
+  const p = sel.p; let n;
+  if (p.tipo === 'combo') { n = Infinity; p.componentes.forEach((c,i) => { n = Math.min(n, impComp(c, sel.cols[i])); }); if (n === Infinity) n = 0; }
+  else n = impVar(p.variantes.find(x=>x.id===sel.v), sel.c, p.colores.length > 1);
+  return Math.max(0, n - enCarritoSel());
+}
+/** Reparte las unidades de cada renglón del pedido entre impresas y a pedido (en el orden del pedido). */
+function repartoInmediata(){
+  const usado = {}, res = [];
+  carrito.forEach(i => {
+    const p = PROD[i.productoId]; let inm = 0;
+    if (p && p.tipo !== 'combo') {
+      const v = p.variantes.find(x=>x.id===i.varianteId), k = i.varianteId+'|'+(p.colores.length>1?i.color:'');
+      const libre = Math.max(0, impVar(v, i.color, p.colores.length>1) - (usado[k]||0));
+      inm = Math.min(i.cantidad, libre); usado[k] = (usado[k]||0) + inm;
+    } else if (p) {
+      let libre = Infinity;
+      p.componentes.forEach((c,ix) => { const col = (i.colores||[])[ix]||''; libre = Math.min(libre, impComp(c, col)); });
+      inm = Math.min(i.cantidad, libre === Infinity ? 0 : libre);
+    }
+    res.push(inm);
+  });
+  return res;
+}
 function varSinStock(v, p){ return !!v.max && (p.colores.length ? p.colores : ['']).every(c => !(maxVar(v,c) > 0)); }
 /** Unidades que se pueden pedir con la selección actual (null = sin control de stock). */
 function maxSel(){
@@ -434,12 +468,12 @@ function pintarModal(){
     h += '<div><div class="lbl">Medida</div><div class="opts">'+p.variantes.map(v=>{
           const l = v.lista && v.lista[sel.m];
           const ss = varSinStock(v, p);
-          return '<button class="opt '+(v.id===sel.v?'on':'')+'" '+(ss?'disabled title="Sin stock"':'')+' onclick="sel.v=\''+v.id+'\';elegirColorDisponible();sel.cant=1;pintarModal()">'+esc(v.medida)+'<small>'+(ss?'sin stock':(l?'<s>'+dinero(l)+'</s> ':'')+dinero(v.precios[sel.m]))+'</small></button>';
+          return '<button class="opt '+(v.id===sel.v?'on':'')+'" '+(ss?'disabled title="Sin stock"':'')+' onclick="sel.v=\''+v.id+'\';elegirColorDisponible();sel.cant=1;pintarModal()">'+esc(v.medida)+'<small>'+(ss?'sin stock':(l?'<s>'+dinero(l)+'</s> ':'')+dinero(v.precios[sel.m]))+'</small>'+(!ss && impTot(v)?'<small class="inm">⚡ '+impTot(v)+' lista'+(impTot(v)>1?'s':'')+'</small>':'')+'</button>';
         }).join('')+'</div></div>';
     if (p.materiales.length>1) h += '<div><div class="lbl">Material</div><div class="opts">'+p.materiales.map(m=>
           '<button class="opt '+(m===sel.m?'on':'')+'" onclick="sel.m=\''+esc(m)+'\';pintarModal()">'+esc(m)+'</button>').join('')+'</div></div>';
     if (p.colores.length) { const vs = p.variantes.find(x=>x.id===sel.v); h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>{ const u = maxVar(vs, c);
-          return '<button class="opt '+(c===sel.c?'on':'')+'" '+(u===0?'disabled title="Sin stock en esta medida"':'')+' onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';sel.cant=1;pintarModal()">'+esc(c)+(u===0?'<small>sin stock</small>':'')+'</button>'; }).join('')+'</div></div>'; }
+          return '<button class="opt '+(c===sel.c?'on':'')+'" '+(u===0?'disabled title="Sin stock en esta medida"':'')+' onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';sel.cant=1;pintarModal()">'+esc(c)+(u===0?'<small>sin stock</small>':(impVar(vs,c,true)&&p.colores.length>1?'<small class="inm">⚡ '+impVar(vs,c,true)+' lista'+(impVar(vs,c,true)>1?'s':'')+'</small>':''))+'</button>'; }).join('')+'</div></div>'; }
     if (p.personalizable) {
       h += '<div><label class="chk"><input type="checkbox" '+(sel.perso?'checked':'')+' onchange="sel.perso=this.checked;pintarModal()"> Personalizar'+
            (p.recargoPersonalizacion?' <span class="note">(+'+dinero(p.recargoPersonalizacion)+')</span>':'')+'</label>';
@@ -457,7 +491,13 @@ function pintarModal(){
            (u ? '<br><span class="note">Ya tenés '+u+' en el pedido'+(u>=MAY().minimo?' ✓':': faltan '+(MAY().minimo-u))+'</span>' : '')+'</div>';
     }
   }
-  if (p.estado==='A pedido') h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
+  if (agot) h += '<p class="note">Por ahora no está disponible. Consultanos por WhatsApp si lo necesitás.</p>';
+  else {
+    const li0 = impSel();
+    if (li0 >= sel.cant) h += '<p class="note inmnote">⚡ Entrega inmediata: '+(li0===1?'hay 1 lista':'hay '+li0+' listas')+' para entregar.</p>';
+    else if (li0 > 0) h += '<p class="note inmnote">⚡ '+li0+' de entrega inmediata + '+(sel.cant-li0)+' a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
+    else h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
+  }
   if (window.API_URL && p.slug) h += '<button class="share" onclick="compartir()">🔗 Compartir este producto</button>';
   const mx = maxSel(), disp = mx == null ? 999 : Math.max(0, mx - enCarritoSel());
   if (sel.cant > disp && disp > 0) sel.cant = disp;
@@ -548,14 +588,16 @@ function pintarCarrito(estado){
     h += '<div class="db"><div class="empty">Todavía no agregaste productos.</div></div>';
     d.innerHTML = h; return;
   }
+  const rep = repartoInmediata();
   h += '<div class="db">' + carrito.map((i,ix)=>{
-    const l = linea(i);
+    const l = linea(i), inm = rep[ix];
     const meta = l.p.tipo==='combo'
       ? l.p.componentes.map((c,k)=>(c.cantidad>1?c.cantidad+'× ':'')+c.nombre+((i.colores&&i.colores[k])?' '+i.colores[k]:'')).join(' + ')
       : [l.v.medida, l.p.materiales.length>1?i.material:'', i.color].filter(Boolean).join(' · ');
     return '<div class="it">'+imgTag(portada(l.p),160,l.p.nombre)+
       '<div><h4>'+esc(l.p.nombre)+'</h4><div class="meta">'+esc(meta)+'</div>'+
       (i.personalizacion?'<div class="meta">✏️ '+esc(i.personalizacion)+'</div>':'')+
+      (inm?'<div class="meta inm">⚡ '+(inm>=i.cantidad?'Entrega inmediata':inm+' de entrega inmediata + '+(i.cantidad-inm)+' a pedido')+'</div>':'')+
       '<div class="meta">'+(l.may?'<s>'+dinero(l.lista)+'</s> ':'')+dinero(l.unit)+' c/u'+(l.may?' · <span class="maytag">💼 mayorista</span>':'')+'</div></div>'+
       '<div class="r"><b>'+dinero(l.importe)+'</b><div class="qty"><button onclick="cant('+ix+',-1)">−</button><span>'+i.cantidad+'</span><button onclick="cant('+ix+',1)">+</button></div>'+
       '<button class="rm" onclick="quitar('+ix+')">Quitar</button></div></div>';
