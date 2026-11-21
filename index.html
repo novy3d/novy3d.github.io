@@ -154,6 +154,10 @@
   .opt.on{border-color:var(--red3);background:rgba(163,18,26,.18)}
   .opt:disabled{opacity:.45;cursor:not-allowed}
   .opt:disabled small{color:var(--warn)}
+  .inp.csel{appearance:none;-webkit-appearance:none;cursor:pointer;font-size:15px;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+  .csel option:disabled{color:#777}
+  .cpartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .comp .csel{margin-top:6px;padding:8px 36px 8px 10px;font-size:14px}
   .inp{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
   .inp:focus{border-color:var(--red2)}
   .chk{display:flex;align-items:center;gap:9px;cursor:pointer}
@@ -426,6 +430,10 @@ function colorPara(v, p, color){
   return color;
 }
 function conParte(color, pt, c){ const mp = mapaPartes(color) || {}; mp[pt] = c; return Object.keys(mp).map(k=>k+': '+mp[k]).join(' · '); }
+/** Selector desplegable de color: opciones [{c, sin, li}] (sin stock → deshabilitada; li = piezas listas). */
+function selColor(ops, actual, onchange){
+  return '<select class="inp csel" onchange="'+onchange+'">'+ops.map(o=>'<option value="'+esc(o.c)+'"'+(o.c===actual?' selected':'')+(o.sin?' disabled':'')+'>'+esc(o.c)+(o.sin?' — sin stock':(o.li?' — ⚡ '+o.li+' lista'+(o.li>1?'s':''):''))+'</option>').join('')+'</select>';
+}
 function elegirParte(pt, c){ const v = sel.p.variantes.find(x=>x.id===sel.v); sel.c = textoPartes(v.partes, v.partes.map(x => x===pt ? c : mapaPartes(sel.c)[x])); sel.cant = 1; pintarModal(); }
 /** Unidades que se pueden pedir con la selección actual (null = sin control de stock). */
 function maxSel(){
@@ -474,7 +482,7 @@ function pintarModal(){
   if (combo) {
     h += '<div><div class="lbl">Incluye</div>'+p.componentes.map((c,i)=>
       '<div class="comp">'+imgTag(c.imagen,160,c.nombre)+'<div><b>'+(c.cantidad>1?c.cantidad+'× ':'')+esc(c.nombre)+'</b> <span class="note">· '+esc(c.medida)+'</span>'+
-      (c.colores.length>1?'<div class="opts">'+c.colores.map(col=>{ const u = maxComp(c,col); return '<button class="opt '+(col===sel.cols[i]?'on':'')+'" '+(u===0?'disabled title="Sin stock"':'')+' onclick="sel.cols['+i+']=\''+esc(col).replace(/'/g,"\\'")+'\';sel.cant=1;pintarModal()">'+esc(col)+(u===0?'<small>sin stock</small>':'')+'</button>'; }).join('')+'</div>'
+      (c.colores.length>1?selColor(c.colores.map(col=>{ const u = maxComp(c,col); return {c:col, sin:u===0}; }), sel.cols[i], 'sel.cols['+i+']=this.value;sel.cant=1;pintarModal()')
         :(c.colores.length?'<div class="note">'+esc(c.colores[0])+'</div>':''))+
       '</div></div>').join('')+'</div>';
   } else {
@@ -488,12 +496,13 @@ function pintarModal(){
     const vsP = p.variantes.find(x=>x.id===sel.v);
     if (vsP && vsP.partes) {
       const mp = mapaPartes(sel.c) || {};
-      vsP.partes.forEach(pt => {
-        h += '<div><div class="lbl">Color · '+esc(pt)+'</div><div class="opts">'+p.colores.map(c=>{ const cc = conParte(sel.c, pt, c), u = maxVar(vsP, cc), li = impVar(vsP, cc, true);
-          return '<button class="opt '+(c===mp[pt]?'on':'')+'" '+(u===0?'disabled title="Sin stock con los otros colores elegidos"':'')+' onclick="elegirParte(\''+esc(pt).replace(/'/g,"\\'")+'\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+(u===0?'<small>sin stock</small>':(li?'<small class="inm">⚡ '+li+' lista'+(li>1?'s':'')+'</small>':''))+'</button>'; }).join('')+'</div></div>';
-      });
-    } else if (p.colores.length) { const vs = p.variantes.find(x=>x.id===sel.v); h += '<div><div class="lbl">Color</div><div class="opts">'+p.colores.map(c=>{ const u = maxVar(vs, c);
-          return '<button class="opt '+(c===sel.c?'on':'')+'" '+(u===0?'disabled title="Sin stock en esta medida"':'')+' onclick="sel.c=\''+esc(c).replace(/'/g,"\\'")+'\';sel.cant=1;pintarModal()">'+esc(c)+(u===0?'<small>sin stock</small>':(impVar(vs,c,true)&&p.colores.length>1?'<small class="inm">⚡ '+impVar(vs,c,true)+' lista'+(impVar(vs,c,true)>1?'s':'')+'</small>':''))+'</button>'; }).join('')+'</div></div>'; }
+      h += '<div class="cpartes">'+vsP.partes.map(pt => '<div><div class="lbl">Color · '+esc(pt)+'</div>'+selColor(p.colores.map(c => { const cc = conParte(sel.c, pt, c); return {c:c, sin:maxVar(vsP, cc)===0, li:impVar(vsP, cc, true)}; }), mp[pt],
+        'elegirParte(\''+esc(pt).replace(/'/g,"\\'")+'\',this.value)')+'</div>').join('')+'</div>';
+    } else if (p.colores.length) {
+      const vs = p.variantes.find(x=>x.id===sel.v);
+      h += '<div><div class="lbl">Color</div>'+(p.colores.length===1 ? '<div class="note">'+esc(p.colores[0])+'</div>' :
+        selColor(p.colores.map(c => ({c:c, sin:maxVar(vs, c)===0, li:impVar(vs, c, true)})), sel.c, 'sel.c=this.value;sel.cant=1;pintarModal()'))+'</div>';
+    }
     if (p.personalizable) {
       h += '<div><label class="chk"><input type="checkbox" '+(sel.perso?'checked':'')+' onchange="sel.perso=this.checked;pintarModal()"> Personalizar'+
            (p.recargoPersonalizacion?' <span class="note">(+'+dinero(p.recargoPersonalizacion)+')</span>':'')+'</label>';
