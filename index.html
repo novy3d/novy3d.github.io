@@ -109,6 +109,7 @@
   .comp .opts{margin-top:5px}.comp .opt{padding:4px 9px;font-size:12px}
   .price{font-size:26px;font-weight:700;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
   .share{border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--mut);align-self:flex-start}
+  .acc{display:flex;gap:8px;flex-wrap:wrap}.share.wa{background:none;color:#7EE0A6;border-color:rgba(37,211,102,.45)}
   .share:hover{color:var(--txt);border-color:var(--red3)}
   .hp{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0}
   .noimg{width:100%;height:100%;display:grid;place-items:center;font-family:'Archivo Black';font-size:42px;color:var(--red);background:linear-gradient(135deg,#2b303b,#3a4150)}
@@ -527,13 +528,16 @@ function pintarModal(){
     else if (li0 > 0) h += '<p class="note inmnote">⚡ '+li0+' de entrega inmediata + '+(sel.cant-li0)+' a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
     else h += '<p class="note">⏱ Se imprime a pedido. Te confirmamos el tiempo de entrega por WhatsApp.</p>';
   }
-  if (window.API_URL && p.slug) h += '<button class="share" onclick="compartir()">🔗 Compartir este producto</button>';
+  h += '<div class="acc">'+(window.API_URL && p.slug ? '<button class="share" onclick="compartir()">🔗 Compartir este producto</button>' : '')+
+       (agot || (maxSel()!=null && Math.max(0, maxSel()-enCarritoSel())<1 && !(maxSel()>0)) ? '' : '<button class="share wa" onclick="consultarProducto()">💬 Consultar por WhatsApp</button>')+'</div>';
   const mx = maxSel(), disp = mx == null ? 999 : Math.max(0, mx - enCarritoSel());
   if (sel.cant > disp && disp > 0) sel.cant = disp;
   const sinSt = !agot && disp < 1;
   if (mx != null && disp > 0 && disp <= 5) h += '<p class="note" style="color:var(--warn)">Quedan pocas: podés pedir hasta '+disp+'.</p>';
   h += '<div class="buy"><div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);pintarModal()">−</button><span>'+sel.cant+'</span><button onclick="sel.cant=Math.min('+Math.max(1,disp)+',sel.cant+1);pintarModal()">+</button></div>'+
-       '<button class="big" '+(agot||sinSt?'disabled':'')+' onclick="agregar()"><span>'+(agot?'Agotado':(sinSt?(mx>0?'Ya tenés todas en el pedido':'Sin stock'):'Agregar al pedido'))+'</span><span>'+dinero(pr*sel.cant)+'</span></button></div>';
+       (agot || (sinSt && !(mx>0))
+         ? '<button class="big wa" onclick="consultarProducto()"><span>💬 '+(agot?'Agotado':'Sin stock')+': consultanos</span><span>→</span></button></div>'
+         : '<button class="big" '+(sinSt?'disabled':'')+' onclick="agregar()"><span>'+(sinSt?'Ya tenés todas en el pedido':'Agregar al pedido')+'</span><span>'+dinero(pr*sel.cant)+'</span></button></div>');
   h += '</div>';
   $('modal').innerHTML = h;
   // "Ver más" solo si la descripción no entra en 4 renglones (se compara la altura recortada con la completa)
@@ -689,6 +693,16 @@ function enviar(){
     });
 }
 
+/** Abre WhatsApp con una consulta por el producto abierto (con la medida y el color elegidos y su link). */
+function consultarProducto(){
+  const p = sel.p, combo = p.tipo === 'combo', v = p.variantes.find(x=>x.id===sel.v);
+  const det = combo ? p.componentes.map((c,i)=>c.nombre+(sel.cols[i]?' '+sel.cols[i]:'')).join(' + ')
+                    : [p.variantes.length>1 && v ? v.medida : '', p.materiales.length>1 ? sel.m : '', sel.c].filter(Boolean).join(' · ');
+  let t = '¡Hola ' + NEG.nombre + '! 👋 Quería consultar por *' + p.nombre + '*' + (det ? ' (' + det + ')' : '') + '.';
+  if (window.API_URL && p.slug) t += '\n' + linkProducto(p);
+  evento('consulta/' + (p.slug || p.id), 'Consulta: ' + p.nombre);
+  window.open('https://wa.me/' + NEG.whatsapp + '?text=' + encodeURIComponent(t), '_blank');
+}
 function consultaPersonalizada(){
   let t = '¡Hola ' + NEG.nombre + '! 👋 Quiero consultar por un pedido personalizado.';
   if (NEG.minimoPersonalizado > 0) t += '\n(Vi que el mínimo es ' + dinero(NEG.minimoPersonalizado) + ')';
